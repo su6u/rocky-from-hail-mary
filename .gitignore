@@ -1,0 +1,33 @@
+node_modules
+dist
+.turbo
+*.tsbuildinfo
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+# env & secrets
+.env
+.env.*
+!.env.example
+
+# logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# test coverage
+coverage
+
+# python
+__pycache__
+*.pyc
+
+# editor / IDE (local)
+.idea
+*.swp
+*.swo
+*~
