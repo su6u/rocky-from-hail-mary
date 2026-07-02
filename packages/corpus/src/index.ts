@@ -89,6 +89,25 @@ export {
   trainExportIds,
 } from "./split.js"
 export {
+  collectModelSpecWarnings,
+  defaultModelSpecPath,
+  loadModelSpec,
+  MODEL_SPEC_BASE_MODEL_WARNING,
+  MODEL_SPEC_EXPORT_QUANT_WARNING,
+  type ModelSpec,
+  type ModelSpecAdapter,
+  type ModelSpecArtifacts,
+  type ModelSpecEvalGates,
+  type ModelSpecInference,
+  type ModelSpecOptimizer,
+  type ModelSpecQuantization,
+  type ModelSpecSequence,
+  ModelSpecError,
+  type ModelSpecValidationResult,
+  validateModelSpec,
+  validateModelSpecFile,
+} from "./model-spec.js"
+export {
   buildTrainerExport,
   convertTrainingExampleToTrainerRows,
   countMetadataTags,
