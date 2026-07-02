@@ -51,6 +51,29 @@ export {
 } from "./source-manifest.js"
 
 export {
+  assertGoldenEvalNotInTrainExport,
+  assertSplitRegistry,
+  assignTrainingSplit,
+  buildSplitRegistry,
+  buildSplitReport,
+  DEFAULT_HOLDOUT_FRACTION,
+  DEFAULT_SPLIT_SEED,
+  findSplitLeakage,
+  formatSplitReport,
+  hashSplitBucket,
+  isSplitName,
+  type SplitLeakageIssue,
+  type SplitName,
+  SplitNames,
+  type SplitRegistry,
+  type SplitRegistryEntry,
+  SplitRegistryError,
+  type SplitReportRow,
+  splitRegistryById,
+  trainExportIds,
+} from "./split.js"
+
+export {
   CorpusValidationError,
   defaultGoldenEvalPath,
   defaultSeedCorpusDir,
