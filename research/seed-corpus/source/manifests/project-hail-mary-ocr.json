@@ -1,0 +1,8 @@
+{
+  "sourceId": "project-hail-mary-ocr",
+  "title": "Project Hail Mary (OCR text)",
+  "filePath": "raw/data/phm.txt",
+  "localOnly": true,
+  "sourceNotes": "Full OCR book text. Source material only — never trainer export input.",
+  "allowedPipelineUse": ["scene_extraction", "provenance_reference", "review_queue"]
+}

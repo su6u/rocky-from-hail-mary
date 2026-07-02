@@ -22,6 +22,35 @@ export {
 } from "./schema.js"
 
 export {
+  assertTrainerExportSafe,
+  isTrainerExportEligible,
+  type TrainerExportGuardResult,
+  partitionTrainerExportSources,
+  TrainerExportGuardError,
+  trainerExportRejectionReason,
+} from "./ocr-source.js"
+
+export {
+  defaultProjectHailMaryOcrManifestPath,
+  defaultSourceManifestsDir,
+  formatManifestBasename,
+  isSourcePipelineUse,
+  isUnderRawPath,
+  listSourceManifests,
+  loadAllSourceManifests,
+  loadSourceManifest,
+  resolveRepoPath,
+  SourceManifestError,
+  SourcePipelineUses,
+  type SourceManifest,
+  type SourceManifestSummary,
+  type SourcePipelineUse,
+  summarizeSourceManifest,
+  validateSourceManifest,
+  validateSourceManifestFile,
+} from "./source-manifest.js"
+
+export {
   CorpusValidationError,
   defaultGoldenEvalPath,
   defaultSeedCorpusDir,
