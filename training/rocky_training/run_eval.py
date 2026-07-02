@@ -9,7 +9,8 @@ from typing import Any, Callable
 from rocky_training.endpoint_client import call_llama_cpp_chat, call_ollama_chat
 from rocky_training.golden_prompts import GoldenPrompt, load_golden_prompts
 from rocky_training.metadata_parse import parse_model_output, slugify_label
-from rocky_training.paths import default_golden_eval_path, default_system_prompt_path
+from rocky_training.model_spec import load_model_spec
+from rocky_training.paths import default_golden_eval_path, default_spec_path, default_system_prompt_path
 from rocky_training.trainer_jsonl import write_json
 
 
@@ -101,6 +102,7 @@ def run_eval(
     output_path: Path,
     golden_path: Path | None = None,
     system_prompt_path: Path | None = None,
+    spec_path: Path | None = None,
     limit: int = 0,
     label: str | None = None,
     backend: str = "ollama",
@@ -110,12 +112,14 @@ def run_eval(
     resolved_label = label or f"{backend}:{model}"
     prompts = load_golden_prompts(golden_path or default_golden_eval_path(), limit=limit)
     system_prompt = load_system_prompt(system_prompt_path)
+    spec = load_model_spec(spec_path or default_spec_path())
+    stop_tokens = list(spec.inference.stop)
     caller = chat_caller or select_chat_caller(backend)
 
     rows: list[EvalResultRow] = []
     for prompt in prompts:
         messages = build_eval_messages(system_prompt, prompt.user)
-        raw_output = caller(host=host, model=model, messages=messages)
+        raw_output = caller(host=host, model=model, messages=messages, stop=stop_tokens)
         rows.append(make_result_row(resolved_label, prompt, raw_output))
 
     payload = build_eval_run_payload(
@@ -126,6 +130,7 @@ def run_eval(
         results=rows,
         baseline_path=str(baseline_path) if baseline_path is not None else None,
     )
+    payload["stop"] = stop_tokens
     write_json(output_path, payload)
     array_path = output_path.with_name(f"{output_path.stem}.results.json")
     array_path.write_text(

@@ -41,9 +41,12 @@ def call_ollama_chat(
     host: str,
     model: str,
     messages: list[dict[str, str]],
+    stop: list[str] | None = None,
 ) -> str:
     url = f"{host.rstrip('/')}/api/chat"
-    payload = {"model": model, "messages": messages, "stream": False}
+    payload: dict[str, Any] = {"model": model, "messages": messages, "stream": False}
+    if stop:
+        payload["options"] = {"stop": stop}
     parsed = _post_json(url, payload)
     message = parsed.get("message")
     if not isinstance(message, dict):
@@ -59,9 +62,12 @@ def call_llama_cpp_chat(
     host: str,
     model: str,
     messages: list[dict[str, str]],
+    stop: list[str] | None = None,
 ) -> str:
     url = f"{host.rstrip('/')}/v1/chat/completions"
-    payload = {"model": model, "messages": messages, "stream": False}
+    payload: dict[str, Any] = {"model": model, "messages": messages, "stream": False}
+    if stop:
+        payload["stop"] = stop
     parsed = _post_json(url, payload)
     choices = parsed.get("choices")
     if not isinstance(choices, list) or len(choices) == 0:

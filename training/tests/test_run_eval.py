@@ -53,6 +53,7 @@ def test_run_eval_writes_deterministic_results(tmp_path: Path) -> None:
     assert payload["results"][0]["promptId"] == "eval-eridian_concepts"
     assert payload["results"][1]["promptId"] == "eval-repairing_machines"
     assert payload["baselinePath"] == str(tmp_path / "base.results.json")
+    assert payload["stop"] == ["</rocky_metadata>"]
 
     array_path = output_path.with_name("candidate-eval.results.json")
     assert array_path.is_file()

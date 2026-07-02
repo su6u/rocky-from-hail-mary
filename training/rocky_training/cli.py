@@ -55,6 +55,7 @@ def _cmd_run_eval(args: argparse.Namespace) -> int:
         model=args.model,
         output_path=Path(args.output),
         golden_path=Path(args.golden) if args.golden else None,
+        spec_path=Path(args.spec),
         system_prompt_path=Path(args.system_prompt) if args.system_prompt else None,
         limit=args.limit,
         label=args.label,
@@ -119,6 +120,7 @@ def build_parser() -> argparse.ArgumentParser:
     run_eval.add_argument("--model", type=str, required=True)
     run_eval.add_argument("--output", type=str, required=True)
     run_eval.add_argument("--golden", type=str, default=None)
+    run_eval.add_argument("--spec", type=str, default=str(default_spec_path()))
     run_eval.add_argument("--system-prompt", type=str, default=str(default_system_prompt_path()))
     run_eval.add_argument("--limit", type=int, default=0)
     run_eval.add_argument("--label", type=str, default=None)

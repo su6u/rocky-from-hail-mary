@@ -33,6 +33,11 @@ def test_resolve_smoke_base_model_uses_fallback_for_placeholder() -> None:
     assert resolve_smoke_base_model(spec) == SMOKE_FALLBACK_MODEL
 
 
+def test_load_trainer_jsonl_max_rows_zero_loads_all() -> None:
+    rows = load_trainer_jsonl(FIXTURES / "smoke.train.jsonl", max_rows=0)
+    assert len(rows) == 2
+
+
 def test_run_smoke_sft_writes_manifest(tmp_path: Path) -> None:
     def fake_train(**_kwargs: object) -> SmokeTrainingResult:
         return SmokeTrainingResult(

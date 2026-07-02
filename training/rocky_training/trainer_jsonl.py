@@ -61,7 +61,7 @@ def load_trainer_jsonl(path: str | Path, *, max_rows: int | None = None) -> list
             messages.append(TrainerExportMessage(role=role, content=content))
 
         rows.append(TrainerExportRow(id=row_id, messages=tuple(messages)))
-        if max_rows is not None and len(rows) >= max_rows:
+        if max_rows is not None and max_rows > 0 and len(rows) >= max_rows:
             break
 
     if len(rows) == 0:

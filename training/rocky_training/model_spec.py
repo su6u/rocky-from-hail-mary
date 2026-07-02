@@ -123,6 +123,16 @@ class ModelSpecError(Exception):
         self.file_path = file_path
 
 
+def _positive_int(value: Any) -> int | None:
+    if isinstance(value, bool):
+        return None
+    if isinstance(value, int) and value > 0:
+        return value
+    if isinstance(value, float) and value.is_integer() and value > 0:
+        return int(value)
+    return None
+
+
 def _is_non_empty_string(value: Any) -> bool:
     return isinstance(value, str) and len(value) > 0
 
@@ -208,16 +218,18 @@ def validate_model_spec(raw: Any, line: int = 0) -> ModelSpecValidationResult:
     sequence_raw = raw.get("sequence")
     if not isinstance(sequence_raw, dict):
         issues.append(ValidationIssue(line, "sequence", "sequence must be an object"))
-    elif not isinstance(sequence_raw.get("max_length"), (int, float)) or sequence_raw["max_length"] <= 0:
-        issues.append(
-            ValidationIssue(
-                line,
-                "sequence.max_length",
-                "sequence.max_length must be a positive number",
-            )
-        )
     else:
-        sequence = ModelSpecSequence(max_length=int(sequence_raw["max_length"]))
+        parsed_max_length = _positive_int(sequence_raw.get("max_length"))
+        if parsed_max_length is None:
+            issues.append(
+                ValidationIssue(
+                    line,
+                    "sequence.max_length",
+                    "sequence.max_length must be a positive integer",
+                )
+            )
+        else:
+            sequence = ModelSpecSequence(max_length=parsed_max_length)
 
     adapter: ModelSpecAdapter | None = None
     adapter_raw = raw.get("adapter")
@@ -232,10 +244,10 @@ def validate_model_spec(raw: Any, line: int = 0) -> ModelSpecValidationResult:
 
         if not _is_non_empty_string(method) or not _in_list(method, ADAPTER_METHODS):
             issues.append(ValidationIssue(line, "adapter.method", "adapter.method must be qlora"))
-        if not isinstance(rank, (int, float)) or rank <= 0:
-            issues.append(ValidationIssue(line, "adapter.rank", "adapter.rank must be positive"))
-        if not isinstance(alpha, (int, float)) or alpha <= 0:
-            issues.append(ValidationIssue(line, "adapter.alpha", "adapter.alpha must be positive"))
+        if _positive_int(rank) is None:
+            issues.append(ValidationIssue(line, "adapter.rank", "adapter.rank must be a positive integer"))
+        if _positive_int(alpha) is None:
+            issues.append(ValidationIssue(line, "adapter.alpha", "adapter.alpha must be a positive integer"))
         if not isinstance(dropout, (int, float)) or dropout < 0 or dropout > 1:
             issues.append(
                 ValidationIssue(
@@ -263,19 +275,21 @@ def validate_model_spec(raw: Any, line: int = 0) -> ModelSpecValidationResult:
                         )
                     )
 
+        parsed_rank = _positive_int(rank)
+        parsed_alpha = _positive_int(alpha)
         if (
             _is_non_empty_string(method)
             and _in_list(method, ADAPTER_METHODS)
-            and isinstance(rank, (int, float))
-            and isinstance(alpha, (int, float))
+            and parsed_rank is not None
+            and parsed_alpha is not None
             and isinstance(dropout, (int, float))
             and isinstance(target_modules, list)
             and all(_is_non_empty_string(module) and _in_list(module, TARGET_MODULES) for module in target_modules)
         ):
             adapter = ModelSpecAdapter(
                 method=method,
-                rank=int(rank),
-                alpha=int(alpha),
+                rank=parsed_rank,
+                alpha=parsed_alpha,
                 dropout=float(dropout),
                 target_modules=tuple(str(module) for module in target_modules),
             )
@@ -309,31 +323,33 @@ def validate_model_spec(raw: Any, line: int = 0) -> ModelSpecValidationResult:
             issues.append(
                 ValidationIssue(line, "optimizer.weight_decay", "weight_decay must be >= 0")
             )
-        if not isinstance(effective_batch_size, (int, float)) or effective_batch_size <= 0:
+        if _positive_int(effective_batch_size) is None:
             issues.append(
                 ValidationIssue(
                     line,
                     "optimizer.effective_batch_size",
-                    "effective_batch_size must be positive",
+                    "effective_batch_size must be a positive integer",
                 )
             )
-        if not isinstance(max_epochs, (int, float)) or max_epochs <= 0:
+        if _positive_int(max_epochs) is None:
             issues.append(
-                ValidationIssue(line, "optimizer.max_epochs", "max_epochs must be positive")
+                ValidationIssue(line, "optimizer.max_epochs", "max_epochs must be a positive integer")
             )
         if not isinstance(early_stopping, bool):
             issues.append(
                 ValidationIssue(line, "optimizer.early_stopping", "early_stopping must be boolean")
             )
 
+        parsed_effective_batch_size = _positive_int(effective_batch_size)
+        parsed_max_epochs = _positive_int(max_epochs)
         if (
             isinstance(learning_rate, (int, float))
             and _is_non_empty_string(scheduler)
             and _in_list(scheduler, SCHEDULERS)
             and isinstance(warmup_ratio, (int, float))
             and isinstance(weight_decay, (int, float))
-            and isinstance(effective_batch_size, (int, float))
-            and isinstance(max_epochs, (int, float))
+            and parsed_effective_batch_size is not None
+            and parsed_max_epochs is not None
             and isinstance(early_stopping, bool)
         ):
             optimizer = ModelSpecOptimizer(
@@ -341,8 +357,8 @@ def validate_model_spec(raw: Any, line: int = 0) -> ModelSpecValidationResult:
                 scheduler=scheduler,
                 warmup_ratio=float(warmup_ratio),
                 weight_decay=float(weight_decay),
-                effective_batch_size=int(effective_batch_size),
-                max_epochs=int(max_epochs),
+                effective_batch_size=parsed_effective_batch_size,
+                max_epochs=parsed_max_epochs,
                 early_stopping=early_stopping,
             )
 
@@ -362,9 +378,9 @@ def validate_model_spec(raw: Any, line: int = 0) -> ModelSpecValidationResult:
             )
         if not isinstance(top_p, (int, float)) or top_p <= 0 or top_p > 1:
             issues.append(ValidationIssue(line, "inference.top_p", "top_p must be between 0 and 1"))
-        if not isinstance(num_ctx, (int, float)) or num_ctx <= 0:
+        if _positive_int(num_ctx) is None:
             issues.append(
-                ValidationIssue(line, "inference.num_ctx", "num_ctx must be a positive number")
+                ValidationIssue(line, "inference.num_ctx", "num_ctx must be a positive integer")
             )
         if not isinstance(stop, list) or len(stop) == 0:
             issues.append(
@@ -385,17 +401,18 @@ def validate_model_spec(raw: Any, line: int = 0) -> ModelSpecValidationResult:
                         )
                     )
 
+        parsed_num_ctx = _positive_int(num_ctx)
         if (
             isinstance(temperature, (int, float))
             and isinstance(top_p, (int, float))
-            and isinstance(num_ctx, (int, float))
+            and parsed_num_ctx is not None
             and isinstance(stop, list)
             and all(_is_non_empty_string(token) for token in stop)
         ):
             inference = ModelSpecInference(
                 temperature=float(temperature),
                 top_p=float(top_p),
-                num_ctx=int(num_ctx),
+                num_ctx=parsed_num_ctx,
                 stop=tuple(str(token) for token in stop),
             )
 
