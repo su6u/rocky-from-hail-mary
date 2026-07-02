@@ -6,7 +6,8 @@ import sys
 from pathlib import Path
 
 from rocky_training.model_spec import validate_model_spec_file
-from rocky_training.paths import default_spec_path
+from rocky_training.paths import default_spec_path, default_system_prompt_path
+from rocky_training.run_eval import run_eval
 from rocky_training.smoke_sft import run_smoke_sft
 
 GPU_RUN_HELP = (
@@ -45,6 +46,22 @@ def _cmd_smoke_sft(args: argparse.Namespace) -> int:
         base_model=args.base_model,
     )
     print(json.dumps({"outputDir": args.output_dir, "manifest": manifest}, indent=2))
+    return 0
+
+
+def _cmd_run_eval(args: argparse.Namespace) -> int:
+    payload = run_eval(
+        host=args.host,
+        model=args.model,
+        output_path=Path(args.output),
+        golden_path=Path(args.golden) if args.golden else None,
+        system_prompt_path=Path(args.system_prompt) if args.system_prompt else None,
+        limit=args.limit,
+        label=args.label,
+        backend=args.backend,
+        baseline_path=Path(args.baseline) if args.baseline else None,
+    )
+    print(json.dumps({"output": args.output, "label": payload["label"], "count": len(payload["results"])}, indent=2))
     return 0
 
 
@@ -101,8 +118,13 @@ def build_parser() -> argparse.ArgumentParser:
     run_eval.add_argument("--host", type=str, default="http://localhost:11434")
     run_eval.add_argument("--model", type=str, required=True)
     run_eval.add_argument("--output", type=str, required=True)
+    run_eval.add_argument("--golden", type=str, default=None)
+    run_eval.add_argument("--system-prompt", type=str, default=str(default_system_prompt_path()))
     run_eval.add_argument("--limit", type=int, default=0)
-    run_eval.set_defaults(handler=lambda _args: _cmd_not_implemented("run-eval"))
+    run_eval.add_argument("--label", type=str, default=None)
+    run_eval.add_argument("--backend", type=str, choices=["ollama", "llama-cpp"], default="ollama")
+    run_eval.add_argument("--baseline", type=str, default=None)
+    run_eval.set_defaults(handler=_cmd_run_eval)
 
     return parser
 
