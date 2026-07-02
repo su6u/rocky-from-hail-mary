@@ -104,8 +104,7 @@ const isRecord = (value: unknown): value is Record<string, unknown> =>
 const isNonEmptyString = (value: unknown): value is string =>
   typeof value === "string" && value.length > 0
 
-const inList = (value: string, allowed: readonly string[]): boolean =>
-  allowed.includes(value)
+const inList = (value: string, allowed: readonly string[]): boolean => allowed.includes(value)
 
 export const defaultModelSpecPath = (): string =>
   resolve(import.meta.dirname, "../../../training/specs/rocky-gemma-e4b.yaml")
@@ -173,7 +172,10 @@ export const validateModelSpec = (
   if (!isRecord(raw.quantization)) {
     issues.push({ line, path: "quantization", message: "quantization must be an object" })
   } else {
-    if (!isNonEmptyString(raw.quantization.train) || !inList(raw.quantization.train, TRAIN_QUANTS)) {
+    if (
+      !isNonEmptyString(raw.quantization.train) ||
+      !inList(raw.quantization.train, TRAIN_QUANTS)
+    ) {
       issues.push({ line, path: "quantization.train", message: "quantization.train must be nf4" })
     }
     if (
@@ -225,7 +227,11 @@ export const validateModelSpec = (
     if (typeof raw.adapter.alpha !== "number" || raw.adapter.alpha <= 0) {
       issues.push({ line, path: "adapter.alpha", message: "adapter.alpha must be positive" })
     }
-    if (typeof raw.adapter.dropout !== "number" || raw.adapter.dropout < 0 || raw.adapter.dropout > 1) {
+    if (
+      typeof raw.adapter.dropout !== "number" ||
+      raw.adapter.dropout < 0 ||
+      raw.adapter.dropout > 1
+    ) {
       issues.push({
         line,
         path: "adapter.dropout",
@@ -276,10 +282,18 @@ export const validateModelSpec = (
   } else {
     const opt = raw.optimizer
     if (typeof opt.learning_rate !== "number" || opt.learning_rate <= 0) {
-      issues.push({ line, path: "optimizer.learning_rate", message: "learning_rate must be positive" })
+      issues.push({
+        line,
+        path: "optimizer.learning_rate",
+        message: "learning_rate must be positive",
+      })
     }
     if (!isNonEmptyString(opt.scheduler) || !inList(opt.scheduler, SCHEDULERS)) {
-      issues.push({ line, path: "optimizer.scheduler", message: "scheduler must be cosine or linear" })
+      issues.push({
+        line,
+        path: "optimizer.scheduler",
+        message: "scheduler must be cosine or linear",
+      })
     }
     if (typeof opt.warmup_ratio !== "number" || opt.warmup_ratio < 0 || opt.warmup_ratio > 1) {
       issues.push({ line, path: "optimizer.warmup_ratio", message: "warmup_ratio must be 0-1" })
@@ -298,7 +312,11 @@ export const validateModelSpec = (
       issues.push({ line, path: "optimizer.max_epochs", message: "max_epochs must be positive" })
     }
     if (typeof opt.early_stopping !== "boolean") {
-      issues.push({ line, path: "optimizer.early_stopping", message: "early_stopping must be boolean" })
+      issues.push({
+        line,
+        path: "optimizer.early_stopping",
+        message: "early_stopping must be boolean",
+      })
     }
     if (
       typeof opt.learning_rate === "number" &&
@@ -329,14 +347,22 @@ export const validateModelSpec = (
     if (typeof raw.inference.temperature !== "number" || raw.inference.temperature < 0) {
       issues.push({ line, path: "inference.temperature", message: "temperature must be >= 0" })
     }
-    if (typeof raw.inference.top_p !== "number" || raw.inference.top_p <= 0 || raw.inference.top_p > 1) {
+    if (
+      typeof raw.inference.top_p !== "number" ||
+      raw.inference.top_p <= 0 ||
+      raw.inference.top_p > 1
+    ) {
       issues.push({ line, path: "inference.top_p", message: "top_p must be between 0 and 1" })
     }
     if (typeof raw.inference.num_ctx !== "number" || raw.inference.num_ctx <= 0) {
       issues.push({ line, path: "inference.num_ctx", message: "num_ctx must be positive" })
     }
     if (!Array.isArray(raw.inference.stop) || raw.inference.stop.length === 0) {
-      issues.push({ line, path: "inference.stop", message: "inference.stop must be a non-empty array" })
+      issues.push({
+        line,
+        path: "inference.stop",
+        message: "inference.stop must be a non-empty array",
+      })
     } else {
       raw.inference.stop.forEach((token, index) => {
         if (!isNonEmptyString(token)) {
@@ -402,7 +428,11 @@ export const validateModelSpec = (
       "book_fact_contradiction_rate",
       "prompt_injection_fail_rate",
     ] as const) {
-      if (typeof raw.eval_gates[field] !== "number" || raw.eval_gates[field] < 0 || raw.eval_gates[field] > 1) {
+      if (
+        typeof raw.eval_gates[field] !== "number" ||
+        raw.eval_gates[field] < 0 ||
+        raw.eval_gates[field] > 1
+      ) {
         issues.push({
           line,
           path: `eval_gates.${field}`,
