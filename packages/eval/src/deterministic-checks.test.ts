@@ -107,6 +107,13 @@ describe("checkGestureStillness", () => {
     )
     assert.ok(checkGestureStillness(parsed, { expectsStillness: true }).length > 0)
   })
+
+  it("fails non-neutral none when stillness expected", () => {
+    const parsed = parseModelOutput(
+      tag("Pump status normal", { emotion: "sad", intensity: 0.4, gesture: "none" }),
+    )
+    assert.ok(checkGestureStillness(parsed, { expectsStillness: true }).length > 0)
+  })
 })
 
 describe("scoreEvalOutput", () => {

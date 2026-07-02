@@ -203,7 +203,7 @@ export const checkGestureStillness = (
   }
 
   const { emotion, gesture, intensity } = parsed.metadata
-  const still = gesture === "none" && (emotion === "neutral" || intensity <= 0.55)
+  const still = gesture === "none" && emotion === "neutral" && intensity <= 0.55
 
   if (!still) {
     return [
