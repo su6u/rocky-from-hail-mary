@@ -17,6 +17,7 @@
   },
   "dependencies": {
     "@rocky/domain": "workspace:*",
+    "@rocky/prompt": "workspace:*",
     "@rocky/protocol": "workspace:*"
   }
 }

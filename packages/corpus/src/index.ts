@@ -1,4 +1,12 @@
 export {
+  assertTrainerExportSafe,
+  isTrainerExportEligible,
+  partitionTrainerExportSources,
+  TrainerExportGuardError,
+  type TrainerExportGuardResult,
+  trainerExportRejectionReason,
+} from "./ocr-source.js"
+export {
   type CorpusAssistantMessage,
   type CorpusMessage,
   type CorpusNonAssistantMessage,
@@ -20,16 +28,24 @@ export {
   validateSourceProvenance,
   validateTrainingExample,
 } from "./schema.js"
-
 export {
-  assertTrainerExportSafe,
-  isTrainerExportEligible,
-  type TrainerExportGuardResult,
-  partitionTrainerExportSources,
-  TrainerExportGuardError,
-  trainerExportRejectionReason,
-} from "./ocr-source.js"
-
+  CorpusValidationError,
+  defaultGoldenEvalPath,
+  defaultSeedCorpusDir,
+  defaultTrainingSeedPath,
+  formatValidationIssue,
+  formatValidationIssues,
+  type LoadedGoldenCorpus,
+  type LoadedTrainingCorpus,
+  loadGoldenJsonl,
+  loadTrainingJsonl,
+  type ParsedJsonlLine,
+  parseJsonl,
+  type SeedCorpusValidationSummary,
+  validateGoldenJsonlFile,
+  validateSeedCorpus,
+  validateTrainingJsonlFile,
+} from "./seed-loader.js"
 export {
   defaultProjectHailMaryOcrManifestPath,
   defaultSourceManifestsDir,
@@ -40,16 +56,15 @@ export {
   loadAllSourceManifests,
   loadSourceManifest,
   resolveRepoPath,
-  SourceManifestError,
-  SourcePipelineUses,
   type SourceManifest,
+  SourceManifestError,
   type SourceManifestSummary,
   type SourcePipelineUse,
+  SourcePipelineUses,
   summarizeSourceManifest,
   validateSourceManifest,
   validateSourceManifestFile,
 } from "./source-manifest.js"
-
 export {
   assertGoldenEvalNotInTrainExport,
   assertSplitRegistry,
@@ -72,22 +87,18 @@ export {
   splitRegistryById,
   trainExportIds,
 } from "./split.js"
-
 export {
-  CorpusValidationError,
-  defaultGoldenEvalPath,
-  defaultSeedCorpusDir,
-  defaultTrainingSeedPath,
-  formatValidationIssue,
-  formatValidationIssues,
-  type LoadedGoldenCorpus,
-  type LoadedTrainingCorpus,
-  loadGoldenJsonl,
-  loadTrainingJsonl,
-  type ParsedJsonlLine,
-  parseJsonl,
-  type SeedCorpusValidationSummary,
-  validateGoldenJsonlFile,
-  validateSeedCorpus,
-  validateTrainingJsonlFile,
-} from "./seed-loader.js"
+  buildTrainerExport,
+  convertTrainingExampleToTrainerRows,
+  countMetadataTags,
+  DOMAIN_VERSION,
+  decodeAssistantLabel,
+  extractMetadataTag,
+  formatAssistantTrainerContent,
+  promptHash,
+  TrainerExportError,
+  type TrainerExportManifest,
+  type TrainerExportMessage,
+  type TrainerExportResult,
+  type TrainerExportRow,
+} from "./trainer-export.js"
