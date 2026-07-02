@@ -1,4 +1,12 @@
 export {
+  assertTrainerExportSafe,
+  isTrainerExportEligible,
+  partitionTrainerExportSources,
+  TrainerExportGuardError,
+  type TrainerExportGuardResult,
+  trainerExportRejectionReason,
+} from "./ocr-source.js"
+export {
   type CorpusAssistantMessage,
   type CorpusMessage,
   type CorpusNonAssistantMessage,
@@ -20,7 +28,6 @@ export {
   validateSourceProvenance,
   validateTrainingExample,
 } from "./schema.js"
-
 export {
   CorpusValidationError,
   defaultGoldenEvalPath,
@@ -39,3 +46,59 @@ export {
   validateSeedCorpus,
   validateTrainingJsonlFile,
 } from "./seed-loader.js"
+export {
+  defaultProjectHailMaryOcrManifestPath,
+  defaultSourceManifestsDir,
+  formatManifestBasename,
+  isSourcePipelineUse,
+  isUnderRawPath,
+  listSourceManifests,
+  loadAllSourceManifests,
+  loadSourceManifest,
+  resolveRepoPath,
+  type SourceManifest,
+  SourceManifestError,
+  type SourceManifestSummary,
+  type SourcePipelineUse,
+  SourcePipelineUses,
+  summarizeSourceManifest,
+  validateSourceManifest,
+  validateSourceManifestFile,
+} from "./source-manifest.js"
+export {
+  assertGoldenEvalNotInTrainExport,
+  assertSplitRegistry,
+  assignTrainingSplit,
+  buildSplitRegistry,
+  buildSplitReport,
+  DEFAULT_HOLDOUT_FRACTION,
+  DEFAULT_SPLIT_SEED,
+  findSplitLeakage,
+  formatSplitReport,
+  hashSplitBucket,
+  isSplitName,
+  type SplitLeakageIssue,
+  type SplitName,
+  SplitNames,
+  type SplitRegistry,
+  type SplitRegistryEntry,
+  SplitRegistryError,
+  type SplitReportRow,
+  splitRegistryById,
+  trainExportIds,
+} from "./split.js"
+export {
+  buildTrainerExport,
+  convertTrainingExampleToTrainerRows,
+  countMetadataTags,
+  DOMAIN_VERSION,
+  decodeAssistantLabel,
+  extractMetadataTag,
+  formatAssistantTrainerContent,
+  promptHash,
+  TrainerExportError,
+  type TrainerExportManifest,
+  type TrainerExportMessage,
+  type TrainerExportResult,
+  type TrainerExportRow,
+} from "./trainer-export.js"

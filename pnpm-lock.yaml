@@ -26,6 +26,9 @@ importers:
       '@rocky/domain':
         specifier: workspace:*
         version: link:../domain
+      '@rocky/prompt':
+        specifier: workspace:*
+        version: link:../prompt
       '@rocky/protocol':
         specifier: workspace:*
         version: link:../protocol
