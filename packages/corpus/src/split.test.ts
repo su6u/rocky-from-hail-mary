@@ -10,6 +10,7 @@ import {
 import {
   assertGoldenEvalNotInTrainExport,
   assertSplitRegistry,
+  assertTrainingRowsCoveredByRegistry,
   assignTrainingSplit,
   buildSplitRegistry,
   buildSplitReport,
@@ -85,6 +86,68 @@ describe("buildSplitRegistry", () => {
     const issues = findSplitLeakage(broken)
     assert.equal(issues.length, 1)
     assert.equal(issues[0]?.id, "row-a")
+  })
+
+  it("rejects golden eval ids assigned to holdout", () => {
+    const registry = buildSplitRegistry({
+      trainingRows: [],
+      goldenEvalIds: ["eval-test"],
+    })
+
+    const broken = {
+      ...registry,
+      entries: registry.entries.map((entry) =>
+        entry.id === "eval-test" ? { ...entry, split: "holdout" as const } : entry,
+      ),
+    }
+
+    assert.throws(() => assertGoldenEvalNotInTrainExport(broken, ["eval-test"]))
+  })
+
+  it("requires every training row id in the registry", () => {
+    const registry = buildSplitRegistry({
+      trainingRows: [
+        {
+          id: "row-a",
+          source: "seed",
+          messages: [
+            {
+              role: "assistant",
+              content: "Hello",
+              metadata: { emotion: "neutral", intensity: 0.5, gesture: "none" },
+            },
+          ],
+        },
+      ],
+      goldenEvalIds: [],
+    })
+
+    assert.throws(() =>
+      assertTrainingRowsCoveredByRegistry(registry, [
+        {
+          id: "row-a",
+          source: "seed",
+          messages: [
+            {
+              role: "assistant",
+              content: "Hello",
+              metadata: { emotion: "neutral", intensity: 0.5, gesture: "none" },
+            },
+          ],
+        },
+        {
+          id: "row-missing",
+          source: "seed",
+          messages: [
+            {
+              role: "assistant",
+              content: "Missing",
+              metadata: { emotion: "neutral", intensity: 0.5, gesture: "none" },
+            },
+          ],
+        },
+      ]),
+    )
   })
 
   it("prints row counts by source and split", () => {

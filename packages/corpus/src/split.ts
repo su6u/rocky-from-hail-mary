@@ -133,11 +133,33 @@ export const assertGoldenEvalNotInTrainExport = (
   registry: SplitRegistry,
   goldenEvalIds: ReadonlyArray<string>,
 ): void => {
-  const trainIds = trainExportIds(registry)
-  const leaked = goldenEvalIds.filter((id) => trainIds.has(id))
+  const byId = splitRegistryById(registry)
+  const leaked = goldenEvalIds.filter((id) => {
+    const split = byId.get(id)
+    return split !== undefined && split !== "eval"
+  })
 
   if (leaked.length > 0) {
-    throw new SplitRegistryError(`golden eval ids in train export: ${leaked.join(", ")}`)
+    throw new SplitRegistryError(`golden eval ids must use eval split only: ${leaked.join(", ")}`)
+  }
+
+  const trainIds = trainExportIds(registry)
+  const trainLeaked = goldenEvalIds.filter((id) => trainIds.has(id))
+
+  if (trainLeaked.length > 0) {
+    throw new SplitRegistryError(`golden eval ids in train export: ${trainLeaked.join(", ")}`)
+  }
+}
+
+export const assertTrainingRowsCoveredByRegistry = (
+  registry: SplitRegistry,
+  trainingRows: ReadonlyArray<TrainingExample>,
+): void => {
+  const byId = splitRegistryById(registry)
+  const missing = trainingRows.filter((row) => !byId.has(row.id)).map((row) => row.id)
+
+  if (missing.length > 0) {
+    throw new SplitRegistryError(`training rows missing from split registry: ${missing.join(", ")}`)
   }
 }
 
