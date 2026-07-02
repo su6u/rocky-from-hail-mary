@@ -68,6 +68,7 @@ export {
 export {
   assertGoldenEvalNotInTrainExport,
   assertSplitRegistry,
+  assertTrainingRowsCoveredByRegistry,
   assignTrainingSplit,
   buildSplitRegistry,
   buildSplitReport,

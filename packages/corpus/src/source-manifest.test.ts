@@ -26,7 +26,21 @@ describe("isUnderRawPath", () => {
   it("detects raw/ paths", () => {
     assert.equal(isUnderRawPath("raw/data/phm.txt"), true)
     assert.equal(isUnderRawPath("./raw/data/phm.txt"), true)
-    assert.equal(isUnderRawPath("research/seed-corpus/source/README.md"), false)
+    assert.equal(isUnderRawPath("../raw/data/phm.txt"), true)
+    assert.equal(isUnderRawPath("research/seed-corpus/project-hail-mary.seed.jsonl"), false)
+  })
+
+  it("rejects trainer_export for relative raw bypass paths", () => {
+    const result = validateSourceManifest({
+      sourceId: "bad-raw",
+      title: "Bad raw source",
+      filePath: "../raw/data/phm.txt",
+      localOnly: false,
+      allowedPipelineUse: ["trainer_export"],
+    })
+
+    assert.ok(result.issues.some((issue) => issue.path === "localOnly"))
+    assert.ok(result.issues.some((issue) => issue.path === "allowedPipelineUse"))
   })
 })
 

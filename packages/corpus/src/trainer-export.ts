@@ -7,6 +7,7 @@ import type { SourceManifest } from "./source-manifest.js"
 import {
   assertGoldenEvalNotInTrainExport,
   assertSplitRegistry,
+  assertTrainingRowsCoveredByRegistry,
   buildSplitRegistry,
   type SplitRegistry,
   trainExportIds,
@@ -176,11 +177,11 @@ export const buildTrainerExport = (options: {
 
   assertSplitRegistry(splitRegistry)
   assertGoldenEvalNotInTrainExport(splitRegistry, options.goldenEvalIds)
+  assertTrainingRowsCoveredByRegistry(splitRegistry, options.trainingRows)
 
   const allowedTrainIds = trainExportIds(splitRegistry)
-  const exportRows = options.trainingRows
-    .filter((row) => allowedTrainIds.has(row.id))
-    .flatMap((row) => convertTrainingExampleToTrainerRows(row))
+  const exportedTrainingRows = options.trainingRows.filter((row) => allowedTrainIds.has(row.id))
+  const exportRows = exportedTrainingRows.flatMap((row) => convertTrainingExampleToTrainerRows(row))
 
   if (options.sourceManifests) {
     for (const manifest of options.sourceManifests) {
@@ -216,7 +217,7 @@ export const buildTrainerExport = (options: {
     }
   }
 
-  const sourceIds = [...new Set(options.trainingRows.map((row) => row.source))].sort()
+  const sourceIds = [...new Set(exportedTrainingRows.map((row) => row.source))].sort()
   const exportedAt = options.exportedAt ?? new Date(0).toISOString()
 
   const manifest: TrainerExportManifest = {
