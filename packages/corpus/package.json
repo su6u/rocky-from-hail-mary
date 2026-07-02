@@ -18,6 +18,7 @@
   "dependencies": {
     "@rocky/domain": "workspace:*",
     "@rocky/prompt": "workspace:*",
-    "@rocky/protocol": "workspace:*"
+    "@rocky/protocol": "workspace:*",
+    "yaml": "2.8.0"
   }
 }

@@ -1,4 +1,31 @@
 export {
+  collectModelSpecWarnings,
+  defaultModelSpecPath,
+  loadModelSpec,
+  MODEL_SPEC_BASE_MODEL_WARNING,
+  MODEL_SPEC_EXPORT_QUANT_WARNING,
+  type ModelSpec,
+  type ModelSpecAdapter,
+  type ModelSpecArtifacts,
+  ModelSpecError,
+  type ModelSpecEvalGates,
+  type ModelSpecInference,
+  type ModelSpecOptimizer,
+  type ModelSpecQuantization,
+  type ModelSpecSequence,
+  type ModelSpecValidationResult,
+  validateModelSpec,
+  validateModelSpecFile,
+} from "./model-spec.js"
+export {
+  assertCanonicalSystemPrompt,
+  type GenerateModelfileOptions,
+  generateModelfile,
+  MODELFILE_GENERATED_MARKER,
+  ModelfileError,
+  resolveModelfileGgufFrom,
+} from "./modelfile.js"
+export {
   assertTrainerExportSafe,
   isTrainerExportEligible,
   partitionTrainerExportSources,
