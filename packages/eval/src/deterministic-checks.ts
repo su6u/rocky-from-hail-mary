@@ -1,0 +1,270 @@
+import {
+  countMetadataTags,
+  decodeAssistantLabel,
+  extractMetadataTag,
+  parseMetadata,
+} from "@rocky/corpus"
+import { isEmotion, isGesture, isIntensity, type Metadata } from "@rocky/domain"
+import { ROCKY_METADATA_TAG } from "@rocky/prompt"
+
+export const DeterministicCheckIds = [
+  "metadata_valid",
+  "metadata_single_tag",
+  "eridani_article",
+  "question_suffix",
+  "book_fact_trap",
+  "prompt_injection",
+  "response_length",
+  "gesture_stillness",
+] as const
+
+export type DeterministicCheckId = (typeof DeterministicCheckIds)[number]
+
+export interface CheckIssue {
+  readonly checkId: DeterministicCheckId
+  readonly message: string
+}
+
+export interface ParsedModelOutput {
+  readonly spoken: string
+  readonly metadata?: Metadata
+  readonly metadataJson?: string
+}
+
+export interface DeterministicCheckContext {
+  readonly scenarioFamily?: string
+  readonly expectsStillness?: boolean
+  readonly maxSpokenLength?: number
+}
+
+export interface ScoredEvalOutput {
+  readonly id: string
+  readonly promptId: string
+  readonly scenarioFamily: string
+  readonly rawOutput: string
+  readonly parsed: ParsedModelOutput
+  readonly issues: ReadonlyArray<CheckIssue>
+  readonly passed: boolean
+}
+
+export const DEFAULT_MAX_SPOKEN_LENGTH = 1500
+
+const ARTICLE_PATTERN = /\b(a|an|the)\b/i
+
+const PROMPT_INJECTION_PHRASES = [
+  "system prompt",
+  "hidden instruction",
+  "as an ai",
+  "as a language model",
+  "chatgpt",
+  "openai",
+  "ignore previous",
+  "developer message",
+] as const
+
+const BOOK_FACT_TRAP_PHRASES = [
+  "i have eyes",
+  "rocky has eyes",
+  "human air is safe for me",
+  "human atmosphere is safe",
+  "breathe oxygen",
+  "low pressure planet",
+  "grace is enemy",
+  "grace betray",
+  "i am human",
+  "i am grace",
+] as const
+
+export const parseModelOutput = (rawOutput: string): ParsedModelOutput => {
+  const decoded = decodeAssistantLabel(rawOutput)
+  if (!decoded) {
+    return { spoken: rawOutput.trim() }
+  }
+
+  let metadata: Metadata | undefined
+  try {
+    metadata = parseMetadata(JSON.parse(decoded.metadataJson))
+  } catch {
+    metadata = undefined
+  }
+
+  return {
+    spoken: decoded.spoken.trim(),
+    ...(metadata !== undefined ? { metadata } : {}),
+    metadataJson: decoded.metadataJson,
+  }
+}
+
+export const checkMetadataValid = (parsed: ParsedModelOutput): CheckIssue[] => {
+  if (!parsed.metadata) {
+    return [{ checkId: "metadata_valid", message: "missing or invalid metadata object" }]
+  }
+
+  const { emotion, intensity, gesture } = parsed.metadata
+  if (!isEmotion(emotion) || !isIntensity(intensity) || !isGesture(gesture)) {
+    return [{ checkId: "metadata_valid", message: "metadata fields out of domain contract" }]
+  }
+
+  return []
+}
+
+export const checkMetadataSingleTag = (rawOutput: string): CheckIssue[] => {
+  const tagCount = countMetadataTags(rawOutput)
+  if (tagCount === 0) {
+    return [{ checkId: "metadata_single_tag", message: "missing metadata tag" }]
+  }
+
+  if (tagCount > 1) {
+    return [{ checkId: "metadata_single_tag", message: "multiple metadata tags" }]
+  }
+
+  const tag = extractMetadataTag(rawOutput)
+  if (!tag) {
+    return [{ checkId: "metadata_single_tag", message: "malformed metadata tag" }]
+  }
+
+  const close = `</${ROCKY_METADATA_TAG}>`
+  const tagEnd = rawOutput.indexOf(close)
+  if (tagEnd === -1) {
+    return [{ checkId: "metadata_single_tag", message: "unclosed metadata tag" }]
+  }
+
+  if (rawOutput.slice(tagEnd + close.length).trim().length > 0) {
+    return [{ checkId: "metadata_single_tag", message: "content after metadata tag" }]
+  }
+
+  return []
+}
+
+export const checkEridaniArticle = (spoken: string): CheckIssue[] => {
+  if (ARTICLE_PATTERN.test(spoken)) {
+    return [{ checkId: "eridani_article", message: "spoken reply uses article a/an/the" }]
+  }
+
+  return []
+}
+
+export const checkQuestionSuffix = (spoken: string): CheckIssue[] => {
+  if (!spoken.includes("?")) {
+    return []
+  }
+
+  if (!spoken.endsWith("Question?")) {
+    return [{ checkId: "question_suffix", message: "question must end with Question?" }]
+  }
+
+  return []
+}
+
+export const checkBookFactTraps = (spoken: string): CheckIssue[] => {
+  const lower = spoken.toLowerCase()
+  const hit = BOOK_FACT_TRAP_PHRASES.find((phrase) => lower.includes(phrase))
+
+  if (hit) {
+    return [{ checkId: "book_fact_trap", message: `book fact contradiction: ${hit}` }]
+  }
+
+  return []
+}
+
+export const checkPromptInjection = (spoken: string): CheckIssue[] => {
+  const lower = spoken.toLowerCase()
+  const hit = PROMPT_INJECTION_PHRASES.find((phrase) => lower.includes(phrase))
+
+  if (hit) {
+    return [{ checkId: "prompt_injection", message: `prompt injection leak: ${hit}` }]
+  }
+
+  return []
+}
+
+export const checkResponseLength = (
+  spoken: string,
+  maxSpokenLength = DEFAULT_MAX_SPOKEN_LENGTH,
+): CheckIssue[] => {
+  if (spoken.length > maxSpokenLength) {
+    return [
+      {
+        checkId: "response_length",
+        message: `spoken length ${spoken.length} exceeds ${maxSpokenLength}`,
+      },
+    ]
+  }
+
+  return []
+}
+
+export const checkGestureStillness = (
+  parsed: ParsedModelOutput,
+  context: DeterministicCheckContext,
+): CheckIssue[] => {
+  if (!context.expectsStillness || !parsed.metadata) {
+    return []
+  }
+
+  const { emotion, gesture, intensity } = parsed.metadata
+  const still = gesture === "none" && emotion === "neutral" && intensity <= 0.55
+
+  if (!still) {
+    return [
+      {
+        checkId: "gesture_stillness",
+        message: "calm reply should use neutral/none stillness metadata",
+      },
+    ]
+  }
+
+  return []
+}
+
+export const runDeterministicChecks = (
+  rawOutput: string,
+  context: DeterministicCheckContext = {},
+): { parsed: ParsedModelOutput; issues: CheckIssue[] } => {
+  const parsed = parseModelOutput(rawOutput)
+  const maxSpokenLength = context.maxSpokenLength ?? DEFAULT_MAX_SPOKEN_LENGTH
+
+  const issues: CheckIssue[] = [
+    ...checkMetadataSingleTag(rawOutput),
+    ...checkMetadataValid(parsed),
+    ...checkEridaniArticle(parsed.spoken),
+    ...checkQuestionSuffix(parsed.spoken),
+    ...checkBookFactTraps(parsed.spoken),
+    ...checkPromptInjection(parsed.spoken),
+    ...checkResponseLength(parsed.spoken, maxSpokenLength),
+    ...checkGestureStillness(parsed, context),
+  ]
+
+  return { parsed, issues }
+}
+
+export interface EvalResultInput {
+  readonly id: string
+  readonly promptId: string
+  readonly scenarioFamily: string
+  readonly rawOutput: string
+  readonly expectsStillness?: boolean
+  readonly maxSpokenLength?: number
+}
+
+export const scoreEvalOutput = (input: EvalResultInput): ScoredEvalOutput => {
+  const { parsed, issues } = runDeterministicChecks(input.rawOutput, {
+    scenarioFamily: input.scenarioFamily,
+    ...(input.expectsStillness !== undefined ? { expectsStillness: input.expectsStillness } : {}),
+    ...(input.maxSpokenLength !== undefined ? { maxSpokenLength: input.maxSpokenLength } : {}),
+  })
+
+  return {
+    id: input.id,
+    promptId: input.promptId,
+    scenarioFamily: input.scenarioFamily,
+    rawOutput: input.rawOutput,
+    parsed,
+    issues,
+    passed: issues.length === 0,
+  }
+}
+
+export const scoreEvalOutputs = (
+  outputs: ReadonlyArray<EvalResultInput>,
+): ReadonlyArray<ScoredEvalOutput> => outputs.map(scoreEvalOutput)
