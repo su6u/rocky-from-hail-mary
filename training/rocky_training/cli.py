@@ -1,10 +1,13 @@
 from __future__ import annotations
 
 import argparse
+import json
 import sys
+from pathlib import Path
 
 from rocky_training.model_spec import validate_model_spec_file
 from rocky_training.paths import default_spec_path
+from rocky_training.smoke_sft import run_smoke_sft
 
 GPU_RUN_HELP = (
     "Full smoke and train runs expect a rented GPU. "
@@ -32,6 +35,19 @@ def _cmd_validate_spec(args: argparse.Namespace) -> int:
     return 1
 
 
+def _cmd_smoke_sft(args: argparse.Namespace) -> int:
+    manifest = run_smoke_sft(
+        spec_path=Path(args.spec),
+        dataset_path=Path(args.dataset),
+        output_dir=Path(args.output_dir),
+        max_rows=args.max_rows,
+        max_steps=args.max_steps,
+        base_model=args.base_model,
+    )
+    print(json.dumps({"outputDir": args.output_dir, "manifest": manifest}, indent=2))
+    return 0
+
+
 def _cmd_not_implemented(name: str) -> int:
     print(f"{name} is not implemented yet", file=sys.stderr)
     return 2
@@ -50,7 +66,10 @@ def build_parser() -> argparse.ArgumentParser:
     smoke_sft.add_argument("--spec", type=str, default=str(default_spec_path()))
     smoke_sft.add_argument("--dataset", type=str, required=True)
     smoke_sft.add_argument("--output-dir", type=str, required=True)
-    smoke_sft.set_defaults(handler=lambda _args: _cmd_not_implemented("smoke-sft"))
+    smoke_sft.add_argument("--max-rows", type=int, default=4)
+    smoke_sft.add_argument("--max-steps", type=int, default=20)
+    smoke_sft.add_argument("--base-model", type=str, default=None)
+    smoke_sft.set_defaults(handler=_cmd_smoke_sft)
 
     train_sft = subparsers.add_parser("train-sft", help="run full sft training")
     _add_gpu_note(train_sft)
