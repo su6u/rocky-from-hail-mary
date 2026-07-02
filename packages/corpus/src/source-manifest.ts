@@ -37,9 +37,28 @@ const isNonEmptyString = (value: unknown): value is string =>
 export const isSourcePipelineUse = (value: string): value is SourcePipelineUse =>
   (SourcePipelineUses as readonly string[]).includes(value)
 
+export const collapseRepoRelativePath = (filePath: string): string => {
+  const stack: string[] = []
+
+  for (const segment of filePath.replace(/\\/g, "/").split("/")) {
+    if (segment === "" || segment === ".") {
+      continue
+    }
+
+    if (segment === "..") {
+      stack.pop()
+      continue
+    }
+
+    stack.push(segment)
+  }
+
+  return stack.join("/")
+}
+
 export const isUnderRawPath = (filePath: string): boolean => {
-  const normalized = filePath.replace(/\\/g, "/").replace(/^\.\//, "")
-  return normalized === "raw" || normalized.startsWith("raw/")
+  const collapsed = collapseRepoRelativePath(filePath)
+  return collapsed === "raw" || collapsed.startsWith("raw/")
 }
 
 export const defaultSourceManifestsDir = (): string =>

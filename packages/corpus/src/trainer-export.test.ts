@@ -86,6 +86,7 @@ describe("buildTrainerExport", () => {
     assert.equal(result.manifest.promptHash, promptHash())
     assert.equal(result.manifest.domainVersion, "0.0.0")
     assert.ok(result.manifest.sourceIds.includes("seed"))
+    assert.equal(result.manifest.rowCount, result.rows.length)
     assert.ok(result.manifest.neutralNoneCount > 0)
 
     const firstAssistant = result.rows[0]?.messages.find((message) => message.role === "assistant")
@@ -95,6 +96,24 @@ describe("buildTrainerExport", () => {
     assert.ok(decoded)
     assert.ok(decoded.spoken.length > 0)
     assert.doesNotThrow(() => JSON.parse(decoded.metadataJson))
+  })
+
+  it("rejects incomplete custom split registries", () => {
+    const training = loadTrainingJsonl(defaultTrainingSeedPath())
+    const golden = loadGoldenJsonl(defaultGoldenEvalPath())
+    const registry = buildSplitRegistry({
+      trainingRows: training.rows.slice(0, 2),
+      goldenEvalIds: [],
+    })
+
+    assert.throws(() =>
+      buildTrainerExport({
+        trainingRows: training.rows.slice(0, 5),
+        goldenEvalIds: golden.rows.map((row) => row.id),
+        splitRegistry: registry,
+        exportedAt: "2026-01-01T00:00:00.000Z",
+      }),
+    )
   })
 
   it("rejects OCR source manifests from export", () => {
