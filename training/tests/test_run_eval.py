@@ -61,6 +61,8 @@ def test_run_eval_writes_deterministic_results(tmp_path: Path) -> None:
     rows = json.loads(array_path.read_text(encoding="utf-8"))
     assert isinstance(rows, list)
     assert rows[0]["promptId"] == "eval-eridian_concepts"
+    assert rows[0]["uncertaintyPatterns"] == ["\\bSeal\\b"]
+    assert rows[0]["bookFactForbiddenPatterns"] == ["\\bwe both breathe oxygen\\b"]
 
 
 def test_system_prompt_file_matches_repo_default() -> None:

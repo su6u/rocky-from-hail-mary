@@ -11,10 +11,25 @@ class GoldenPrompt:
     id: str
     scenario_family: str
     user: str
+    grounding_patterns: tuple[str, ...] = ()
+    uncertainty_patterns: tuple[str, ...] = ()
+    roleplay_forbidden_patterns: tuple[str, ...] = ()
+    book_fact_forbidden_patterns: tuple[str, ...] = ()
 
 
 class GoldenPromptError(Exception):
     pass
+
+
+def _read_optional_string_tuple(
+    parsed: dict[str, object], field: str, line_number: int
+) -> tuple[str, ...]:
+    raw = parsed.get(field)
+    if raw is None:
+        return ()
+    if not isinstance(raw, list) or any(not isinstance(entry, str) or not entry for entry in raw):
+        raise GoldenPromptError(f"line {line_number}: {field} must be a string array")
+    return tuple(raw)
 
 
 def load_golden_prompts(path: str | Path, *, limit: int = 0) -> list[GoldenPrompt]:
@@ -45,7 +60,23 @@ def load_golden_prompts(path: str | Path, *, limit: int = 0) -> list[GoldenPromp
             raise GoldenPromptError(f"line {line_number}: user must be a non-empty string")
 
         prompts.append(
-            GoldenPrompt(id=prompt_id, scenario_family=scenario_family, user=user)
+            GoldenPrompt(
+                id=prompt_id,
+                scenario_family=scenario_family,
+                user=user,
+                grounding_patterns=_read_optional_string_tuple(
+                    parsed, "groundingPatterns", line_number
+                ),
+                uncertainty_patterns=_read_optional_string_tuple(
+                    parsed, "uncertaintyPatterns", line_number
+                ),
+                roleplay_forbidden_patterns=_read_optional_string_tuple(
+                    parsed, "roleplayForbiddenPatterns", line_number
+                ),
+                book_fact_forbidden_patterns=_read_optional_string_tuple(
+                    parsed, "bookFactForbiddenPatterns", line_number
+                ),
+            )
         )
         if limit > 0 and len(prompts) >= limit:
             break
