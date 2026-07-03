@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto"
 
 import { ROCKY_METADATA_TAG, SYSTEM_PROMPT } from "@rocky/prompt"
+import type { GoldenTrainCoverageEntry } from "./golden-train-coverage.js"
 import { isTrainerExportEligible } from "./ocr-source.js"
 import type { CorpusMessage, TrainingExample } from "./schema.js"
 import type { SourceManifest } from "./source-manifest.js"
@@ -23,19 +24,41 @@ export interface TrainerExportRow {
   readonly messages: ReadonlyArray<TrainerExportMessage>
 }
 
-export interface TrainerExportManifest {
+export interface SeedCorpusManifestSummary {
+  readonly originalOcrRowCount: number
+  readonly keptInSeedFile: number
+  readonly inTrainExport: number
+  readonly inHoldout: number
+  readonly droppedNonRocky: number
+  readonly droppedDuplicates: number
+  readonly strippedOcrSystemContexts: number
+  readonly trainMixPercent: number
+}
+
+export interface TrainerExportManifestCore {
   readonly promptHash: string
   readonly domainVersion: string
   readonly rowCount: number
+  readonly trainingRowCount: number
   readonly neutralNoneCount: number
   readonly sourceIds: ReadonlyArray<string>
+  readonly sourceCounts: ReadonlyArray<{ readonly source: string; readonly count: number }>
+  readonly scenarioFamilyCounts: ReadonlyArray<{
+    readonly scenarioFamily: string
+    readonly count: number
+  }>
   readonly splitSeed: number
   readonly exportedAt: string
 }
 
+export interface TrainerExportManifest extends TrainerExportManifestCore {
+  readonly seedCorpus: SeedCorpusManifestSummary
+  readonly goldenTrainCoverage: ReadonlyArray<GoldenTrainCoverageEntry>
+}
+
 export interface TrainerExportResult {
   readonly rows: ReadonlyArray<TrainerExportRow>
-  readonly manifest: TrainerExportManifest
+  readonly manifest: TrainerExportManifestCore
   readonly jsonl: string
 }
 
@@ -191,6 +214,12 @@ export const buildTrainerExport = (options: {
     }
   }
 
+  for (const row of exportedTrainingRows) {
+    if (!row.scenarioFamily) {
+      throw new TrainerExportError(`training row ${row.id} missing scenarioFamily`)
+    }
+  }
+
   let neutralNoneCount = 0
 
   for (const row of exportRows) {
@@ -217,20 +246,40 @@ export const buildTrainerExport = (options: {
     }
   }
 
+  const sourceCountsMap = new Map<string, number>()
+  const scenarioFamilyCountsMap = new Map<string, number>()
+
+  for (const row of exportedTrainingRows) {
+    sourceCountsMap.set(row.source, (sourceCountsMap.get(row.source) ?? 0) + 1)
+    if (row.scenarioFamily) {
+      scenarioFamilyCountsMap.set(
+        row.scenarioFamily,
+        (scenarioFamilyCountsMap.get(row.scenarioFamily) ?? 0) + 1,
+      )
+    }
+  }
+
   const sourceIds = [...new Set(exportedTrainingRows.map((row) => row.source))].sort()
   const exportedAt = options.exportedAt ?? new Date(0).toISOString()
 
-  const manifest: TrainerExportManifest = {
+  const manifest: TrainerExportManifestCore = {
     promptHash: promptHash(),
     domainVersion: DOMAIN_VERSION,
     rowCount: exportRows.length,
+    trainingRowCount: exportedTrainingRows.length,
     neutralNoneCount,
     sourceIds,
+    sourceCounts: [...sourceCountsMap.entries()]
+      .sort(([left], [right]) => left.localeCompare(right))
+      .map(([source, count]) => ({ source, count })),
+    scenarioFamilyCounts: [...scenarioFamilyCountsMap.entries()]
+      .sort(([left], [right]) => left.localeCompare(right))
+      .map(([scenarioFamily, count]) => ({ scenarioFamily, count })),
     splitSeed: splitRegistry.seed,
     exportedAt,
   }
 
-  const jsonl = exportRows.map((row) => JSON.stringify({ messages: row.messages })).join("\n")
+  const jsonl = exportRows.map((row) => JSON.stringify(row)).join("\n")
 
   return { rows: exportRows, manifest, jsonl }
 }

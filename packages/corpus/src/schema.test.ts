@@ -98,6 +98,25 @@ describe("validateTrainingExample", () => {
     assert.equal(result.issues[0]?.line, 4)
   })
 
+  it("requires scenarioFamily for hand-authored rows", () => {
+    const result = validateTrainingExample(
+      {
+        id: "hand-001",
+        source: "hand-authored",
+        messages: [
+          {
+            role: "assistant",
+            content: "Hello",
+            metadata: { emotion: "neutral", intensity: 0.5, gesture: "none" },
+          },
+        ],
+      },
+      1,
+    )
+
+    assert.ok(result.issues.some((issue) => issue.path === "scenarioFamily"))
+  })
+
   it("reports invalid scenario family", () => {
     const result = validateTrainingExample(
       {
@@ -132,6 +151,43 @@ describe("validateGoldenEvalPrompt", () => {
     )
 
     assert.equal(result.issues.length, 0)
+  })
+
+  it("preserves optional pattern fields", () => {
+    const result = validateGoldenEvalPrompt(
+      {
+        id: "eval-patterns",
+        scenarioFamily: "grounded_context",
+        user: "What is sample status?",
+        qualityFocus: "stay in notes",
+        groundingNotes: "Sample pending",
+        groundingPatterns: ["pending"],
+        uncertaintyPatterns: ["maybe"],
+        roleplayForbiddenPatterns: ["\\*\\*"],
+        bookFactForbiddenPatterns: ["oxygen"],
+        expectsStillness: true,
+      },
+      2,
+    )
+
+    assert.equal(result.issues.length, 0)
+    assert.deepEqual(result.value?.groundingPatterns, ["pending"])
+    assert.equal(result.value?.expectsStillness, true)
+  })
+
+  it("rejects invalid regex patterns", () => {
+    const result = validateGoldenEvalPrompt(
+      {
+        id: "eval-bad-pattern",
+        scenarioFamily: "grounded_context",
+        user: "Test",
+        qualityFocus: "test",
+        groundingPatterns: ["("],
+      },
+      3,
+    )
+
+    assert.ok(result.issues.some((issue) => issue.path.startsWith("groundingPatterns")))
   })
 })
 
