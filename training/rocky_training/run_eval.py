@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Any, Callable
 
 from rocky_training.endpoint_client import call_llama_cpp_chat, call_ollama_chat
+from rocky_training.eval_gates import evaluate_gate_summary, serialize_gate_summary
 from rocky_training.golden_prompts import GoldenPrompt, load_golden_prompts
 from rocky_training.metadata_parse import parse_model_output, slugify_label
 from rocky_training.model_spec import load_model_spec
@@ -131,6 +132,8 @@ def run_eval(
         baseline_path=str(baseline_path) if baseline_path is not None else None,
     )
     payload["stop"] = stop_tokens
+    gate_summary = evaluate_gate_summary(payload["results"], spec.eval_gates)
+    payload["gateSummary"] = serialize_gate_summary(gate_summary)
     write_json(output_path, payload)
     array_path = output_path.with_name(f"{output_path.stem}.results.json")
     array_path.write_text(
