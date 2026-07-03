@@ -15,8 +15,10 @@ def test_validate_model_spec_file_accepts_checked_in_spec() -> None:
     assert result.ok, [f"{issue.path}: {issue.message}" for issue in result.issues]
     assert result.spec is not None
     assert result.spec.id == "rocky-gemma-e4b-v1"
+    assert result.spec.base_model == "google/gemma-4-E4B-it"
     assert MODEL_SPEC_EXPORT_QUANT_WARNING in result.warnings
     assert MODEL_SPEC_BASE_MODEL_WARNING in result.warnings
+    assert not any("PLACEHOLDER_" in warning for warning in result.warnings)
 
 
 def test_validate_model_spec_rejects_invalid_adapter_rank() -> None:

@@ -31,6 +31,9 @@ export const defaultSeedCorpusDir = (): string =>
 export const defaultTrainingSeedPath = (): string =>
   resolve(defaultSeedCorpusDir(), "project-hail-mary.seed.jsonl")
 
+export const defaultHandAuthoredPath = (): string =>
+  resolve(defaultSeedCorpusDir(), "hand-authored.jsonl")
+
 export const defaultGoldenEvalPath = (): string =>
   resolve(defaultSeedCorpusDir(), "evaluation-golden-v2.jsonl")
 
@@ -83,6 +86,28 @@ export const loadTrainingJsonl = (filePath: string): LoadedTrainingCorpus => {
   }
 
   return { filePath, rows }
+}
+
+export interface LoadedMergedTrainingCorpus {
+  readonly seedPath: string
+  readonly handAuthoredPath: string
+  readonly rows: ReadonlyArray<TrainingExample>
+}
+
+export const loadTrainingCorpus = (options?: {
+  readonly seedPath?: string
+  readonly handAuthoredPath?: string
+}): LoadedMergedTrainingCorpus => {
+  const seedPath = options?.seedPath ?? defaultTrainingSeedPath()
+  const handAuthoredPath = options?.handAuthoredPath ?? defaultHandAuthoredPath()
+  const seed = loadTrainingJsonl(seedPath)
+  const handAuthored = loadTrainingJsonl(handAuthoredPath)
+
+  return {
+    seedPath,
+    handAuthoredPath,
+    rows: [...seed.rows, ...handAuthored.rows],
+  }
 }
 
 export const loadGoldenJsonl = (filePath: string): LoadedGoldenCorpus => {
@@ -193,12 +218,18 @@ export interface SeedCorpusValidationSummary {
 
 export const validateSeedCorpus = (options?: {
   readonly seedPath?: string
+  readonly handAuthoredPath?: string
   readonly goldenPath?: string
 }): SeedCorpusValidationSummary => {
   const seedPath = options?.seedPath ?? defaultTrainingSeedPath()
+  const handAuthoredPath = options?.handAuthoredPath ?? defaultHandAuthoredPath()
   const goldenPath = options?.goldenPath ?? defaultGoldenEvalPath()
 
-  const results = [validateTrainingJsonlFile(seedPath), validateGoldenJsonlFile(goldenPath)]
+  const results = [
+    validateTrainingJsonlFile(seedPath),
+    validateTrainingJsonlFile(handAuthoredPath),
+    validateGoldenJsonlFile(goldenPath),
+  ]
 
   return {
     results,

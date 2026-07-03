@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Any, Callable
 
 from rocky_training.endpoint_client import call_llama_cpp_chat, call_ollama_chat
+from rocky_training.eval_gates import evaluate_gate_summary, serialize_gate_summary
 from rocky_training.golden_prompts import GoldenPrompt, load_golden_prompts
 from rocky_training.metadata_parse import parse_model_output, slugify_label
 from rocky_training.model_spec import load_model_spec
@@ -22,6 +23,10 @@ class EvalResultRow:
     raw_output: str
     spoken: str
     metadata_json: str | None
+    grounding_patterns: tuple[str, ...] = ()
+    uncertainty_patterns: tuple[str, ...] = ()
+    roleplay_forbidden_patterns: tuple[str, ...] = ()
+    book_fact_forbidden_patterns: tuple[str, ...] = ()
 
 
 ChatCaller = Callable[..., str]
@@ -51,20 +56,33 @@ def make_result_row(label: str, prompt: GoldenPrompt, raw_output: str) -> EvalRe
         raw_output=raw_output,
         spoken=parsed.spoken,
         metadata_json=parsed.metadata_json,
+        grounding_patterns=prompt.grounding_patterns,
+        uncertainty_patterns=prompt.uncertainty_patterns,
+        roleplay_forbidden_patterns=prompt.roleplay_forbidden_patterns,
+        book_fact_forbidden_patterns=prompt.book_fact_forbidden_patterns,
     )
 
 
 def serialize_eval_results(rows: list[EvalResultRow]) -> list[dict[str, Any]]:
     sorted_rows = sorted(rows, key=lambda row: row.prompt_id)
-    return [
-        {
+    result_rows: list[dict[str, Any]] = []
+    for row in sorted_rows:
+        result: dict[str, Any] = {
             "id": row.id,
             "promptId": row.prompt_id,
             "scenarioFamily": row.scenario_family,
             "rawOutput": row.raw_output,
         }
-        for row in sorted_rows
-    ]
+        if row.grounding_patterns:
+            result["groundingPatterns"] = list(row.grounding_patterns)
+        if row.uncertainty_patterns:
+            result["uncertaintyPatterns"] = list(row.uncertainty_patterns)
+        if row.roleplay_forbidden_patterns:
+            result["roleplayForbiddenPatterns"] = list(row.roleplay_forbidden_patterns)
+        if row.book_fact_forbidden_patterns:
+            result["bookFactForbiddenPatterns"] = list(row.book_fact_forbidden_patterns)
+        result_rows.append(result)
+    return result_rows
 
 
 def build_eval_run_payload(
@@ -131,6 +149,8 @@ def run_eval(
         baseline_path=str(baseline_path) if baseline_path is not None else None,
     )
     payload["stop"] = stop_tokens
+    gate_summary = evaluate_gate_summary(payload["results"], spec.eval_gates)
+    payload["gateSummary"] = serialize_gate_summary(gate_summary)
     write_json(output_path, payload)
     array_path = output_path.with_name(f"{output_path.stem}.results.json")
     array_path.write_text(

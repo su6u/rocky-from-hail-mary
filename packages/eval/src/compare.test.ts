@@ -74,10 +74,18 @@ describe("parseEvalResultJson", () => {
         promptId: "eval-test",
         scenarioFamily: "human_concepts",
         rawOutput: tag("Rest now"),
+        groundingPatterns: ["\\bRest\\b"],
+        uncertaintyPatterns: ["\\bnow\\b"],
+        roleplayForbiddenPatterns: ["\\bship\\b"],
+        bookFactForbiddenPatterns: ["\\beyes\\b"],
       },
     ])
 
     assert.equal(rows.length, 1)
     assert.equal(rows[0]?.promptId, "eval-test")
+    assert.deepEqual(rows[0]?.groundingPatterns, ["\\bRest\\b"])
+    assert.deepEqual(rows[0]?.uncertaintyPatterns, ["\\bnow\\b"])
+    assert.deepEqual(rows[0]?.roleplayForbiddenPatterns, ["\\bship\\b"])
+    assert.deepEqual(rows[0]?.bookFactForbiddenPatterns, ["\\beyes\\b"])
   })
 })

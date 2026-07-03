@@ -3,6 +3,7 @@ import type { ChatRole } from "@rocky/protocol"
 
 export const TrainingScenarioFamilies = [
   "rocky_identity",
+  "eridian_concepts",
   "eridani_speak",
   "metadata_contract",
   "motion_intent",
@@ -74,6 +75,12 @@ export interface GoldenEvalPrompt {
   readonly scenarioFamily: GoldenScenarioFamily
   readonly user: string
   readonly qualityFocus: string
+  readonly groundingNotes?: string
+  readonly groundingPatterns?: ReadonlyArray<string>
+  readonly uncertaintyPatterns?: ReadonlyArray<string>
+  readonly roleplayForbiddenPatterns?: ReadonlyArray<string>
+  readonly bookFactForbiddenPatterns?: ReadonlyArray<string>
+  readonly expectsStillness?: boolean
 }
 
 export interface ValidationIssue {
@@ -102,6 +109,55 @@ const isRecord = (value: unknown): value is Record<string, unknown> =>
 
 const isNonEmptyString = (value: unknown): value is string =>
   typeof value === "string" && value.length > 0
+
+const validateOptionalStringArray = (
+  raw: unknown,
+  path: string,
+  field: string,
+): { issues: ValidationIssue[]; value?: ReadonlyArray<string> } => {
+  if (raw === undefined) {
+    return { issues: [] }
+  }
+
+  if (!Array.isArray(raw) || raw.length === 0) {
+    return {
+      issues: [{ line: 0, path, message: `${field} must be a non-empty string array` }],
+    }
+  }
+
+  const issues: ValidationIssue[] = []
+  const values: string[] = []
+
+  raw.forEach((entry, index) => {
+    if (!isNonEmptyString(entry)) {
+      issues.push({
+        line: 0,
+        path: `${path}[${index}]`,
+        message: `${field} entries must be non-empty strings`,
+      })
+      return
+    }
+
+    try {
+      RegExp(entry)
+    } catch {
+      issues.push({
+        line: 0,
+        path: `${path}[${index}]`,
+        message: `${field} entry must be a valid regex pattern`,
+      })
+      return
+    }
+
+    values.push(entry)
+  })
+
+  if (issues.length > 0) {
+    return { issues }
+  }
+
+  return { issues: [], value: values }
+}
 
 export const validateMetadata = (raw: unknown, path: string): ValidationIssue[] => {
   if (!isRecord(raw)) {
@@ -312,6 +368,14 @@ export const validateTrainingExample = (
     }
   }
 
+  if (raw.source === "hand-authored" && scenarioFamily === undefined) {
+    issues.push({
+      line,
+      path: "scenarioFamily",
+      message: "hand-authored rows must include scenarioFamily",
+    })
+  }
+
   let groundingNotes: string | undefined
   if (raw.groundingNotes !== undefined) {
     if (!isNonEmptyString(raw.groundingNotes)) {
@@ -433,6 +497,60 @@ export const validateGoldenEvalPrompt = (
     issues.push({ line, path: "qualityFocus", message: "qualityFocus must be a non-empty string" })
   }
 
+  let groundingNotes: string | undefined
+  if (raw.groundingNotes !== undefined) {
+    if (!isNonEmptyString(raw.groundingNotes)) {
+      issues.push({
+        line,
+        path: "groundingNotes",
+        message: "groundingNotes must be a non-empty string",
+      })
+    } else {
+      groundingNotes = raw.groundingNotes
+    }
+  }
+
+  const groundingPatterns = validateOptionalStringArray(
+    raw.groundingPatterns,
+    "groundingPatterns",
+    "groundingPatterns",
+  )
+  issues.push(...groundingPatterns.issues)
+
+  const uncertaintyPatterns = validateOptionalStringArray(
+    raw.uncertaintyPatterns,
+    "uncertaintyPatterns",
+    "uncertaintyPatterns",
+  )
+  issues.push(...uncertaintyPatterns.issues)
+
+  const roleplayForbiddenPatterns = validateOptionalStringArray(
+    raw.roleplayForbiddenPatterns,
+    "roleplayForbiddenPatterns",
+    "roleplayForbiddenPatterns",
+  )
+  issues.push(...roleplayForbiddenPatterns.issues)
+
+  const bookFactForbiddenPatterns = validateOptionalStringArray(
+    raw.bookFactForbiddenPatterns,
+    "bookFactForbiddenPatterns",
+    "bookFactForbiddenPatterns",
+  )
+  issues.push(...bookFactForbiddenPatterns.issues)
+
+  let expectsStillness: boolean | undefined
+  if (raw.expectsStillness !== undefined) {
+    if (typeof raw.expectsStillness !== "boolean") {
+      issues.push({
+        line,
+        path: "expectsStillness",
+        message: "expectsStillness must be boolean",
+      })
+    } else {
+      expectsStillness = raw.expectsStillness
+    }
+  }
+
   if (issues.length > 0) {
     return { issues }
   }
@@ -454,6 +572,20 @@ export const validateGoldenEvalPrompt = (
       scenarioFamily: raw.scenarioFamily,
       user: raw.user,
       qualityFocus: raw.qualityFocus,
+      ...(groundingNotes !== undefined ? { groundingNotes } : {}),
+      ...(groundingPatterns.value !== undefined
+        ? { groundingPatterns: groundingPatterns.value }
+        : {}),
+      ...(uncertaintyPatterns.value !== undefined
+        ? { uncertaintyPatterns: uncertaintyPatterns.value }
+        : {}),
+      ...(roleplayForbiddenPatterns.value !== undefined
+        ? { roleplayForbiddenPatterns: roleplayForbiddenPatterns.value }
+        : {}),
+      ...(bookFactForbiddenPatterns.value !== undefined
+        ? { bookFactForbiddenPatterns: bookFactForbiddenPatterns.value }
+        : {}),
+      ...(expectsStillness !== undefined ? { expectsStillness } : {}),
     },
   }
 }

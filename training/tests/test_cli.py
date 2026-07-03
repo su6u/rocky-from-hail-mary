@@ -1,5 +1,6 @@
 import subprocess
 import sys
+from pathlib import Path
 
 from rocky_training.cli import build_parser, main
 from rocky_training.paths import default_spec_path
@@ -11,6 +12,7 @@ def test_main_help_lists_all_commands() -> None:
     assert command_names == sorted(
         [
             "export-gguf",
+            "inspect-eval-failures",
             "merge",
             "run-eval",
             "smoke-sft",
@@ -59,7 +61,49 @@ def test_smoke_sft_requires_dataset_and_output_dir() -> None:
     assert "required" in completed.stderr.lower()
 
 
-def test_run_eval_requires_model_and_output() -> None:
+def test_merge_dry_run_writes_manifest() -> None:
+    import tempfile
+
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp_path = Path(tmp)
+        adapter_dir = tmp_path / "adapter"
+        adapter_dir.mkdir()
+        output_dir = tmp_path / "merged"
+        code = main(
+            [
+                "merge",
+                "--adapter-dir",
+                str(adapter_dir),
+                "--output-dir",
+                str(output_dir),
+                "--dry-run",
+            ]
+        )
+        assert code == 0
+        assert (output_dir / "manifest.json").is_file()
+
+
+def test_export_gguf_dry_run_writes_manifest() -> None:
+    import tempfile
+
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp_path = Path(tmp)
+        merged_dir = tmp_path / "merged"
+        merged_dir.mkdir()
+        (merged_dir / "config.json").write_text("{}", encoding="utf-8")
+        output_path = tmp_path / "rocky.gguf"
+        code = main(
+            [
+                "export-gguf",
+                "--merged-dir",
+                str(merged_dir),
+                "--output-path",
+                str(output_path),
+                "--dry-run",
+            ]
+        )
+        assert code == 0
+        assert (tmp_path / "export-gguf.manifest.json").is_file()
     completed = subprocess.run(
         [sys.executable, "-m", "rocky_training", "run-eval"],
         capture_output=True,

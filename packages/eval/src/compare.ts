@@ -128,6 +128,18 @@ export const compareEvalRuns = (
   }
 }
 
+const optionalStringArray = (
+  record: Record<string, unknown>,
+  field: string,
+): ReadonlyArray<string> | undefined => {
+  const raw = record[field]
+  if (!Array.isArray(raw) || raw.some((entry) => typeof entry !== "string")) {
+    return undefined
+  }
+
+  return raw as ReadonlyArray<string>
+}
+
 export const parseEvalResultJson = (raw: unknown): EvalResultInput[] => {
   if (!Array.isArray(raw)) {
     throw new EvalCompareError("eval result json must be an array")
@@ -147,6 +159,11 @@ export const parseEvalResultJson = (raw: unknown): EvalResultInput[] => {
       }
     }
 
+    const groundingPatterns = optionalStringArray(record, "groundingPatterns")
+    const uncertaintyPatterns = optionalStringArray(record, "uncertaintyPatterns")
+    const roleplayForbiddenPatterns = optionalStringArray(record, "roleplayForbiddenPatterns")
+    const bookFactForbiddenPatterns = optionalStringArray(record, "bookFactForbiddenPatterns")
+
     const result: EvalResultInput = {
       id: record.id as string,
       promptId: record.promptId as string,
@@ -158,6 +175,10 @@ export const parseEvalResultJson = (raw: unknown): EvalResultInput[] => {
       ...(typeof record.maxSpokenLength === "number"
         ? { maxSpokenLength: record.maxSpokenLength }
         : {}),
+      ...(groundingPatterns !== undefined ? { groundingPatterns } : {}),
+      ...(uncertaintyPatterns !== undefined ? { uncertaintyPatterns } : {}),
+      ...(roleplayForbiddenPatterns !== undefined ? { roleplayForbiddenPatterns } : {}),
+      ...(bookFactForbiddenPatterns !== undefined ? { bookFactForbiddenPatterns } : {}),
     }
 
     return result

@@ -1,4 +1,28 @@
 export {
+  assistantTextKey,
+  type DedupeReport,
+  dedupeTrainingRows,
+  dedupeTrainingRowsWithReport,
+  isLowQualityTrainingRow,
+  isNoisyOcrSystemContext,
+  isNonRockySeedAssistant,
+  sanitizeSeedTrainingRow,
+  sanitizeSeedTrainingRows,
+  SEED_DEDUPE_FROM_OCR,
+} from "./dedupe-training-rows.js"
+export {
+  buildGoldenTrainCoverage,
+  countGoldenPromptFamilies,
+  GOLDEN_TRAIN_FAMILY_MAP,
+  GOLDEN_TRAIN_MIN_ROWS,
+  type GoldenEvalFamily,
+  type GoldenTrainCoverageEntry,
+} from "./golden-train-coverage.js"
+export {
+  inferScenarioFamily,
+  tagScenarioFamily,
+} from "./infer-scenario-family.js"
+export {
   collectModelSpecWarnings,
   defaultModelSpecPath,
   loadModelSpec,
@@ -58,13 +82,16 @@ export {
 export {
   CorpusValidationError,
   defaultGoldenEvalPath,
+  defaultHandAuthoredPath,
   defaultSeedCorpusDir,
   defaultTrainingSeedPath,
   formatValidationIssue,
   formatValidationIssues,
   type LoadedGoldenCorpus,
+  type LoadedMergedTrainingCorpus,
   type LoadedTrainingCorpus,
   loadGoldenJsonl,
+  loadTrainingCorpus,
   loadTrainingJsonl,
   type ParsedJsonlLine,
   parseJsonl,
@@ -126,7 +153,26 @@ export {
   promptHash,
   TrainerExportError,
   type TrainerExportManifest,
+  type TrainerExportManifestCore,
   type TrainerExportMessage,
+  type SeedCorpusManifestSummary,
   type TrainerExportResult,
   type TrainerExportRow,
 } from "./trainer-export.js"
+export {
+  buildSeedCorpusManifestSummary,
+  countScenarioFamilies,
+  countSources,
+  defaultFrozenExportDir,
+  defaultFrozenManifestPath,
+  defaultFrozenTrainExportPath,
+  enrichTrainerExportManifest,
+  FROZEN_EXPORT_VERSION,
+  type FrozenExportWriteResult,
+  mergeTrainingRows,
+  refreshTaggedSeedFile,
+  type TaggedSeedResult,
+  tagAndDedupeSeedRows,
+  writeFrozenTrainerExport,
+  writeTrainingJsonl,
+} from "./write-frozen-export.js"

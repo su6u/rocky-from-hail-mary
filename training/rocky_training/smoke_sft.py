@@ -27,12 +27,10 @@ class SmokeTrainingResult:
     base_model: str
 
 
-def resolve_smoke_base_model(spec: ModelSpec, override: str | None = None) -> str:
+def resolve_smoke_base_model(_spec: ModelSpec, override: str | None = None) -> str:
     if override:
         return override
-    if spec.base_model.startswith("PLACEHOLDER_"):
-        return SMOKE_FALLBACK_MODEL
-    return spec.base_model
+    return SMOKE_FALLBACK_MODEL
 
 
 def build_smoke_manifest(

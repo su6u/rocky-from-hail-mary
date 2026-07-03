@@ -129,6 +129,9 @@ export const assertSplitRegistry = (registry: SplitRegistry): void => {
 export const trainExportIds = (registry: SplitRegistry): ReadonlySet<string> =>
   new Set(registry.entries.filter((entry) => entry.split === "train").map((entry) => entry.id))
 
+export const holdoutExportIds = (registry: SplitRegistry): ReadonlySet<string> =>
+  new Set(registry.entries.filter((entry) => entry.split === "holdout").map((entry) => entry.id))
+
 export const assertGoldenEvalNotInTrainExport = (
   registry: SplitRegistry,
   goldenEvalIds: ReadonlyArray<string>,

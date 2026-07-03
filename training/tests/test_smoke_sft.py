@@ -28,7 +28,7 @@ def test_format_smoke_example_splits_prompt_and_label() -> None:
     assert "rocky_metadata" in label
 
 
-def test_resolve_smoke_base_model_uses_fallback_for_placeholder() -> None:
+def test_resolve_smoke_base_model_uses_tiny_fallback_by_default() -> None:
     spec = load_model_spec(default_spec_path())
     assert resolve_smoke_base_model(spec) == SMOKE_FALLBACK_MODEL
 

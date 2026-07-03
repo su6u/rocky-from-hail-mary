@@ -54,12 +54,15 @@ def test_run_eval_writes_deterministic_results(tmp_path: Path) -> None:
     assert payload["results"][1]["promptId"] == "eval-repairing_machines"
     assert payload["baselinePath"] == str(tmp_path / "base.results.json")
     assert payload["stop"] == ["</rocky_metadata>"]
+    assert payload["gateSummary"]["passed"] is True
 
     array_path = output_path.with_name("candidate-eval.results.json")
     assert array_path.is_file()
     rows = json.loads(array_path.read_text(encoding="utf-8"))
     assert isinstance(rows, list)
     assert rows[0]["promptId"] == "eval-eridian_concepts"
+    assert rows[0]["uncertaintyPatterns"] == ["\\bSeal\\b"]
+    assert rows[0]["bookFactForbiddenPatterns"] == ["\\bwe both breathe oxygen\\b"]
 
 
 def test_system_prompt_file_matches_repo_default() -> None:
