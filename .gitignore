@@ -25,6 +25,7 @@ coverage
 # python
 __pycache__
 *.pyc
+*.egg-info
 
 # editor / IDE (local)
 .idea
