@@ -1,7 +1,7 @@
 import { mkdirSync, writeFileSync } from "node:fs"
 import { dirname, resolve } from "node:path"
 
-import { dedupeTrainingRowsWithReport, SEED_DEDUPE_FROM_OCR } from "./dedupe-training-rows.js"
+import { type DedupeReport, dedupeTrainingRowsWithReport } from "./dedupe-training-rows.js"
 import {
   buildGoldenTrainCoverage,
   countGoldenPromptFamilies,
@@ -121,6 +121,7 @@ export interface FrozenExportWriteResult {
 export const buildSeedCorpusManifestSummary = (
   mergedTrainingRows: ReadonlyArray<TrainingExample>,
   trainIds: ReadonlySet<string>,
+  seedDedupeReport: DedupeReport,
 ): SeedCorpusManifestSummary => {
   const seedRows = mergedTrainingRows.filter((row) => row.source === "seed")
   const seedInTrain = seedRows.filter((row) => trainIds.has(row.id)).length
@@ -129,13 +130,13 @@ export const buildSeedCorpusManifestSummary = (
     trainIds.size === 0 ? 0 : Math.round((seedInTrain / trainIds.size) * 1000) / 10
 
   return {
-    originalOcrRowCount: SEED_DEDUPE_FROM_OCR.originalOcrRowCount,
+    originalOcrRowCount: seedDedupeReport.inputCount,
     keptInSeedFile: seedRows.length,
     inTrainExport: seedInTrain,
     inHoldout: seedInHoldout,
-    droppedNonRocky: SEED_DEDUPE_FROM_OCR.droppedNonRocky,
-    droppedDuplicates: SEED_DEDUPE_FROM_OCR.droppedDuplicates,
-    strippedOcrSystemContexts: SEED_DEDUPE_FROM_OCR.strippedOcrSystemContexts,
+    droppedNonRocky: seedDedupeReport.droppedNonRockySeed,
+    droppedDuplicates: seedDedupeReport.droppedDuplicates,
+    strippedOcrSystemContexts: seedDedupeReport.strippedSystemContexts,
     trainMixPercent,
   }
 }
@@ -160,6 +161,7 @@ export const writeFrozenTrainerExport = (options?: {
   readonly holdoutExportPath?: string
   readonly manifestPath?: string
   readonly exportedAt?: string
+  readonly seedDedupeReport?: DedupeReport
 }): FrozenExportWriteResult => {
   const seedPath = options?.seedPath ?? defaultTrainingSeedPath()
   const handAuthoredPath = options?.handAuthoredPath ?? defaultHandAuthoredPath()
@@ -169,7 +171,7 @@ export const writeFrozenTrainerExport = (options?: {
   const manifestPath = options?.manifestPath ?? defaultFrozenManifestPath()
   const exportedAt = options?.exportedAt ?? "2026-07-02T00:00:00.000Z"
 
-  const seed = loadTrainingJsonl(seedPath)
+  const seed = tagAndDedupeSeedRows(loadTrainingJsonl(seedPath).rows)
   const handAuthored = loadTrainingJsonl(handAuthoredPath)
   const golden = loadGoldenJsonl(goldenPath)
   const mergedTrainingRows = mergeTrainingRows(seed.rows, handAuthored.rows)
@@ -192,7 +194,11 @@ export const writeFrozenTrainerExport = (options?: {
   const holdoutRows = mergedTrainingRows.filter((row) => holdoutIds.has(row.id))
   const holdoutExportRows = holdoutRows.flatMap((row) => convertTrainingExampleToTrainerRows(row))
   const manifest = enrichTrainerExportManifest(exportResult.manifest, {
-    seedCorpus: buildSeedCorpusManifestSummary(mergedTrainingRows, trainIds),
+    seedCorpus: buildSeedCorpusManifestSummary(
+      mergedTrainingRows,
+      trainIds,
+      options?.seedDedupeReport ?? seed.report,
+    ),
     goldenTrainCoverage: buildGoldenTrainCoverage(
       trainRows,
       countGoldenPromptFamilies(golden.rows.map((row) => row.scenarioFamily)),

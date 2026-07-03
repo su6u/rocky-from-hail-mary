@@ -100,7 +100,11 @@ export const isNonRockySeedAssistant = (content: string): boolean => {
     return true
   }
 
-  if (/\bGrace friend\b/i.test(content) && !/\bfriend Grace\b/.test(content) && !/Hello Grace friend/i.test(content)) {
+  if (
+    /\bGrace friend\b/i.test(content) &&
+    !/\bfriend Grace\b/.test(content) &&
+    !/Hello Grace friend/i.test(content)
+  ) {
     return true
   }
 
@@ -131,9 +135,7 @@ export interface SanitizedSeedRow {
   readonly strippedSystemContext: boolean
 }
 
-export const sanitizeSeedTrainingRow = (
-  example: TrainingExample,
-): SanitizedSeedRow | undefined => {
+export const sanitizeSeedTrainingRow = (example: TrainingExample): SanitizedSeedRow | undefined => {
   if (example.source !== "seed") {
     return { row: example, strippedSystemContext: false }
   }
@@ -171,10 +173,12 @@ export const sanitizeSeedTrainingRows = (
   rows: ReadonlyArray<TrainingExample>,
 ): {
   readonly rows: ReadonlyArray<TrainingExample>
+  readonly droppedLowQuality: number
   readonly droppedNonRockySeed: number
   readonly strippedSystemContexts: number
 } => {
   const prepared: TrainingExample[] = []
+  let droppedLowQuality = 0
   let droppedNonRockySeed = 0
   let strippedSystemContexts = 0
 
@@ -182,7 +186,12 @@ export const sanitizeSeedTrainingRows = (
     const sanitized = sanitizeSeedTrainingRow(row)
     if (!sanitized) {
       if (row.source === "seed") {
-        droppedNonRockySeed += 1
+        const assistant = row.messages.filter((message) => message.role === "assistant").at(-1)
+        if (!assistant || assistant.role !== "assistant" || isLowQualityTrainingRow(row)) {
+          droppedLowQuality += 1
+        } else if (isNonRockySeedAssistant(assistant.content)) {
+          droppedNonRockySeed += 1
+        }
       }
       continue
     }
@@ -194,7 +203,7 @@ export const sanitizeSeedTrainingRows = (
     prepared.push(sanitized.row)
   }
 
-  return { rows: prepared, droppedNonRockySeed, strippedSystemContexts }
+  return { rows: prepared, droppedLowQuality, droppedNonRockySeed, strippedSystemContexts }
 }
 
 const rowQualityScore = (example: TrainingExample): number => {
@@ -252,11 +261,18 @@ export interface DedupeReport {
 export const dedupeTrainingRowsWithReport = (
   rows: ReadonlyArray<TrainingExample>,
 ): { rows: ReadonlyArray<TrainingExample>; report: DedupeReport } => {
-  const { rows: sanitizedRows, droppedNonRockySeed, strippedSystemContexts } =
-    sanitizeSeedTrainingRows(rows)
+  const {
+    rows: sanitizedRows,
+    droppedLowQuality: droppedLowQualityDuringSanitize,
+    droppedNonRockySeed,
+    strippedSystemContexts,
+  } = sanitizeSeedTrainingRows(rows)
   const kept = dedupeTrainingRows(sanitizedRows)
-  const droppedLowQuality = sanitizedRows.filter((row) => isLowQualityTrainingRow(row)).length
-  const droppedDuplicates = sanitizedRows.length - droppedLowQuality - kept.length
+  const droppedLowQualityAfterSanitize = sanitizedRows.filter((row) =>
+    isLowQualityTrainingRow(row),
+  ).length
+  const droppedLowQuality = droppedLowQualityDuringSanitize + droppedLowQualityAfterSanitize
+  const droppedDuplicates = sanitizedRows.length - droppedLowQualityAfterSanitize - kept.length
 
   return {
     rows: kept,

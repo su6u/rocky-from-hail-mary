@@ -7,6 +7,7 @@ import {
   isNoisyOcrSystemContext,
   isNonRockySeedAssistant,
   sanitizeSeedTrainingRow,
+  sanitizeSeedTrainingRows,
 } from "./dedupe-training-rows.js"
 import { inferScenarioFamily, tagScenarioFamily } from "./infer-scenario-family.js"
 import type { TrainingExample } from "./schema.js"
@@ -93,6 +94,40 @@ describe("dedupeTrainingRows", () => {
     assert.equal(isNonRockySeedAssistant("Humans have very small mass!"), false)
   })
 
+  it("keeps low-quality seed drops separate from non-Rocky drops", () => {
+    const result = sanitizeSeedTrainingRows([
+      example({
+        id: "missing-assistant",
+        messages: [{ role: "user", content: "Only user text" }],
+      }),
+      example({
+        id: "low-quality",
+        messages: [
+          { role: "user", content: "What happen?" },
+          {
+            role: "assistant",
+            content: "Many seconds...",
+            metadata: { emotion: "neutral", intensity: 0.5, gesture: "none" },
+          },
+        ],
+      }),
+      example({
+        id: "non-rocky",
+        messages: [
+          { role: "user", content: "Who are you?" },
+          {
+            role: "assistant",
+            content: "Call me Bob,",
+            metadata: { emotion: "neutral", intensity: 0.5, gesture: "none" },
+          },
+        ],
+      }),
+    ])
+
+    assert.equal(result.droppedLowQuality, 2)
+    assert.equal(result.droppedNonRockySeed, 1)
+  })
+
   it("strips noisy OCR system context but keeps Rocky seed rows", () => {
     const sanitized = sanitizeSeedTrainingRow(
       example({
@@ -116,7 +151,10 @@ describe("dedupeTrainingRows", () => {
 
     assert.ok(sanitized)
     assert.equal(sanitized.strippedSystemContext, true)
-    assert.equal(sanitized.row.messages.some((message) => message.role === "system"), false)
+    assert.equal(
+      sanitized.row.messages.some((message) => message.role === "system"),
+      false,
+    )
   })
 })
 

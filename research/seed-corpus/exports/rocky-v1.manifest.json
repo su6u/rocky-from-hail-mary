@@ -87,13 +87,13 @@
   "splitSeed": 42,
   "exportedAt": "2026-07-02T00:00:00.000Z",
   "seedCorpus": {
-    "originalOcrRowCount": 273,
+    "originalOcrRowCount": 76,
     "keptInSeedFile": 76,
     "inTrainExport": 68,
     "inHoldout": 8,
-    "droppedNonRocky": 70,
-    "droppedDuplicates": 127,
-    "strippedOcrSystemContexts": 148,
+    "droppedNonRocky": 0,
+    "droppedDuplicates": 0,
+    "strippedOcrSystemContexts": 0,
     "trainMixPercent": 4.8
   },
   "goldenTrainCoverage": [
