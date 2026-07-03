@@ -1,6 +1,6 @@
 id: rocky-gemma-e4b-v1
-base_model: PLACEHOLDER_VERIFY_UPSTREAM_GEMMA_E4B_IT
-base_model_fallback: PLACEHOLDER_VERIFY_UPSTREAM_GEMMA_E4B_IT_FALLBACK
+base_model: google/gemma-4-E4B-it
+base_model_fallback: google/gemma-4-E4B-it
 chat_template: gemma
 train_precision: bf16
 quantization:

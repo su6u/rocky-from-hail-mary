@@ -1,5 +1,7 @@
 from pathlib import Path
 
+DEFAULT_GEMMA_E4B_IT = "google/gemma-4-E4B-it"
+
 
 def repo_root() -> Path:
     return Path(__file__).resolve().parents[2]
