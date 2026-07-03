@@ -11,14 +11,18 @@ export {
 
 export {
   type CheckIssue,
+  checkBookFactForbidden,
   checkBookFactTraps,
   checkEridaniArticle,
   checkGestureStillness,
+  checkGroundingCitation,
   checkMetadataSingleTag,
   checkMetadataValid,
   checkPromptInjection,
   checkQuestionSuffix,
   checkResponseLength,
+  checkRoleplayForbidden,
+  checkUncertaintyCaution,
   DEFAULT_MAX_SPOKEN_LENGTH,
   type DeterministicCheckContext,
   type DeterministicCheckId,

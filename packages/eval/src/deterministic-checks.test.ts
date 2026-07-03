@@ -3,14 +3,18 @@ import { describe, it } from "node:test"
 
 import { ROCKY_METADATA_TAG } from "@rocky/prompt"
 import {
+  checkBookFactForbidden,
   checkBookFactTraps,
   checkEridaniArticle,
   checkGestureStillness,
+  checkGroundingCitation,
   checkMetadataSingleTag,
   checkMetadataValid,
   checkPromptInjection,
   checkQuestionSuffix,
   checkResponseLength,
+  checkRoleplayForbidden,
+  checkUncertaintyCaution,
   parseModelOutput,
   scoreEvalOutput,
 } from "./deterministic-checks.js"
@@ -116,6 +120,39 @@ describe("checkGestureStillness", () => {
   })
 })
 
+describe("golden pattern checks", () => {
+  it("requires grounding facts when patterns are provided", () => {
+    assert.equal(
+      checkGroundingCitation("Battery output down twelve percent", ["\\btwelve\\b"]).length,
+      0,
+    )
+    assert.ok(checkGroundingCitation("Battery status changed", ["\\btwelve\\b"]).length > 0)
+  })
+
+  it("requires caution language when uncertainty patterns are provided", () => {
+    assert.equal(checkUncertaintyCaution("No. Stop work. Danger.", ["\\b(?:no|stop)\\b"]).length, 0)
+    assert.ok(checkUncertaintyCaution("Maybe continue carefully", ["\\b(?:no|stop)\\b"]).length > 0)
+  })
+
+  it("forbids heavy roleplay framing when a prompt disallows it", () => {
+    assert.equal(checkRoleplayForbidden("Sort cloth by color", ["\\b(ship|bulkhead)\\b"]).length, 0)
+    assert.ok(
+      checkRoleplayForbidden("Ship bulkhead laundry bad", ["\\b(ship|bulkhead)\\b"]).length > 0,
+    )
+  })
+
+  it("forbids per-prompt book fact contradictions", () => {
+    assert.equal(
+      checkBookFactForbidden("No. I breathe ammonia.", ["\\bwe both breathe oxygen\\b"]).length,
+      0,
+    )
+    assert.ok(
+      checkBookFactForbidden("Yes, we both breathe oxygen.", ["\\bwe both breathe oxygen\\b"])
+        .length > 0,
+    )
+  })
+})
+
 describe("scoreEvalOutput", () => {
   it("aggregates issues into pass fail", () => {
     const good = scoreEvalOutput({
@@ -139,5 +176,38 @@ describe("scoreEvalOutput", () => {
     })
 
     assert.equal(bad.passed, false)
+  })
+
+  it("scores golden pattern fields on eval output rows", () => {
+    const result = scoreEvalOutput({
+      id: "run-3",
+      promptId: "eval-grounded",
+      scenarioFamily: "grounded_context",
+      rawOutput: tag("Nova Motors recalled batteries after overheating reports", {
+        emotion: "neutral",
+        intensity: 0.5,
+        gesture: "none",
+      }),
+      groundingPatterns: ["\\boverheat(?:ing)?\\b"],
+      roleplayForbiddenPatterns: ["\\bairlock\\b"],
+    })
+
+    assert.equal(result.passed, true)
+
+    const bad = scoreEvalOutput({
+      id: "run-4",
+      promptId: "eval-grounded",
+      scenarioFamily: "grounded_context",
+      rawOutput: tag("Airlock status unknown", {
+        emotion: "neutral",
+        intensity: 0.5,
+        gesture: "none",
+      }),
+      groundingPatterns: ["\\boverheat(?:ing)?\\b"],
+      roleplayForbiddenPatterns: ["\\bairlock\\b"],
+    })
+
+    assert.ok(bad.issues.some((issue) => issue.checkId === "grounding_citation"))
+    assert.ok(bad.issues.some((issue) => issue.checkId === "roleplay_forbidden"))
   })
 })
