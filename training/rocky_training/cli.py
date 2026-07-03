@@ -5,7 +5,9 @@ import json
 import sys
 from pathlib import Path
 
+from rocky_training.export_gguf import ExportGgufError, run_export_gguf
 from rocky_training.inspect_failures import inspect_eval_failures
+from rocky_training.merge_adapter import MergeAdapterError, run_merge_adapter
 from rocky_training.model_spec import validate_model_spec_file
 from rocky_training.paths import default_spec_path, default_system_prompt_path
 from rocky_training.run_eval import run_eval
@@ -110,6 +112,31 @@ def _cmd_train_dpo(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_merge(args: argparse.Namespace) -> int:
+    manifest = run_merge_adapter(
+        spec_path=Path(args.spec),
+        adapter_dir=Path(args.adapter_dir),
+        output_dir=Path(args.output_dir),
+        base_model=args.base_model,
+        dry_run=args.dry_run,
+    )
+    print(json.dumps({"outputDir": args.output_dir, "manifest": manifest}, indent=2))
+    return 0
+
+
+def _cmd_export_gguf(args: argparse.Namespace) -> int:
+    manifest = run_export_gguf(
+        spec_path=Path(args.spec),
+        merged_dir=Path(args.merged_dir),
+        output_path=Path(args.output_path),
+        convert_script=Path(args.convert_script) if args.convert_script else None,
+        outtype=args.outtype,
+        dry_run=args.dry_run,
+    )
+    print(json.dumps({"outputPath": args.output_path, "manifest": manifest}, indent=2))
+    return 0
+
+
 def _cmd_inspect_eval_failures(args: argparse.Namespace) -> int:
     report = inspect_eval_failures(
         eval_path=Path(args.eval),
@@ -171,16 +198,22 @@ def build_parser() -> argparse.ArgumentParser:
     train_dpo.set_defaults(handler=_cmd_train_dpo)
 
     merge = subparsers.add_parser("merge", help="merge adapter into base weights")
+    _add_gpu_note(merge)
     merge.add_argument("--spec", type=str, default=str(default_spec_path()))
     merge.add_argument("--adapter-dir", type=str, required=True)
     merge.add_argument("--output-dir", type=str, required=True)
-    merge.set_defaults(handler=lambda _args: _cmd_not_implemented("merge"))
+    merge.add_argument("--base-model", type=str, default=None)
+    merge.add_argument("--dry-run", action="store_true")
+    merge.set_defaults(handler=_cmd_merge)
 
     export_gguf = subparsers.add_parser("export-gguf", help="export merged weights to gguf")
     export_gguf.add_argument("--spec", type=str, default=str(default_spec_path()))
     export_gguf.add_argument("--merged-dir", type=str, required=True)
     export_gguf.add_argument("--output-path", type=str, required=True)
-    export_gguf.set_defaults(handler=lambda _args: _cmd_not_implemented("export-gguf"))
+    export_gguf.add_argument("--convert-script", type=str, default=None)
+    export_gguf.add_argument("--outtype", type=str, default=None)
+    export_gguf.add_argument("--dry-run", action="store_true")
+    export_gguf.set_defaults(handler=_cmd_export_gguf)
 
     run_eval = subparsers.add_parser("run-eval", help="run baseline eval against a model endpoint")
     run_eval.add_argument("--host", type=str, default="http://localhost:11434")
@@ -213,7 +246,7 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     try:
         return int(args.handler(args))
-    except (CLIError, TrainSftError, TrainDpoError) as error:
+    except (CLIError, TrainSftError, TrainDpoError, MergeAdapterError, ExportGgufError) as error:
         print(str(error), file=sys.stderr)
         return 1
 
