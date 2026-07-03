@@ -14,7 +14,8 @@
     "lint": "biome check .",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "pnpm build && tsc -p tsconfig.test.json && node --test dist/**/*.test.js",
-    "sync-corpus": "pnpm build && node scripts/generate-hand-authored.mjs && node scripts/sync-training-corpus.mjs"
+    "sync-corpus": "pnpm build && node scripts/generate-hand-authored.mjs && node scripts/sync-training-corpus.mjs",
+    "generate-modelfile": "pnpm build && node scripts/generate-modelfile.mjs"
   },
   "dependencies": {
     "@rocky/domain": "workspace:*",
