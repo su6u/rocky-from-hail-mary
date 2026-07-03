@@ -11,6 +11,7 @@ def test_main_help_lists_all_commands() -> None:
     assert command_names == sorted(
         [
             "export-gguf",
+            "inspect-eval-failures",
             "merge",
             "run-eval",
             "smoke-sft",
