@@ -92,6 +92,7 @@ def _cmd_train_sft(args: argparse.Namespace) -> int:
         gradient_accumulation_steps=args.gradient_accumulation_steps,
         report_to=report_to,
         dry_run=args.dry_run,
+        resume_from_checkpoint=args.resume_from_checkpoint,
     )
     print(json.dumps({"outputDir": args.output_dir, "manifest": manifest}, indent=2))
     return 0
@@ -182,6 +183,12 @@ def build_parser() -> argparse.ArgumentParser:
     train_sft.add_argument("--per-device-eval-batch-size", type=int, default=1)
     train_sft.add_argument("--gradient-accumulation-steps", type=int, default=None)
     train_sft.add_argument("--report-to", type=str, default="none")
+    train_sft.add_argument(
+        "--resume-from-checkpoint",
+        type=str,
+        default=None,
+        help="checkpoint path or 'latest' under output-dir/checkpoints",
+    )
     train_sft.add_argument("--dry-run", action="store_true")
     train_sft.set_defaults(handler=_cmd_train_sft)
 

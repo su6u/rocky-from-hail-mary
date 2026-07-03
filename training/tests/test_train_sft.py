@@ -13,6 +13,7 @@ from rocky_training.train_sft import (
     default_validation_dataset_path,
     gemma_messages_for_training,
     resolve_train_base_model,
+    resolve_resume_checkpoint,
     run_train_sft,
     validate_chat_template,
 )
@@ -83,6 +84,21 @@ def test_resolve_train_base_model_rejects_placeholder() -> None:
         resolve_train_base_model(placeholder_spec)
 
 
+def test_resolve_resume_checkpoint_latest(tmp_path: Path) -> None:
+    checkpoint_root = tmp_path / "checkpoints"
+    (checkpoint_root / "checkpoint-10").mkdir(parents=True)
+    (checkpoint_root / "checkpoint-50").mkdir(parents=True)
+
+    resolved = resolve_resume_checkpoint(tmp_path, "latest")
+    assert resolved is not None
+    assert resolved.endswith("checkpoint-50")
+
+
+def test_resolve_resume_checkpoint_missing_latest(tmp_path: Path) -> None:
+    with pytest.raises(TrainSftError, match="no checkpoints found"):
+        resolve_resume_checkpoint(tmp_path, "latest")
+
+
 def test_run_train_sft_dry_run_writes_manifest(tmp_path: Path) -> None:
     train_path = tmp_path / "rocky-v1.train.jsonl"
     holdout_path = tmp_path / "rocky-v1.holdout.jsonl"
@@ -103,6 +119,8 @@ def test_run_train_sft_dry_run_writes_manifest(tmp_path: Path) -> None:
 
     assert manifest["kind"] == "train-sft"
     assert manifest["assistantOnlyLoss"] is True
+    assert manifest["optimizer"]["saveSteps"] == 50
+    assert manifest["checkpointDir"].endswith("checkpoints")
     assert manifest["trainRowCount"] == 1
     assert manifest["validationRowCount"] == 1
     saved = json.loads((tmp_path / "run" / "manifest.json").read_text(encoding="utf-8"))

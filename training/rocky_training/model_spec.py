@@ -66,6 +66,9 @@ class ModelSpecOptimizer:
     effective_batch_size: int
     max_epochs: int
     early_stopping: bool
+    save_steps: int
+    save_total_limit: int
+    logging_steps: int
 
 
 @dataclass(frozen=True)
@@ -306,6 +309,9 @@ def validate_model_spec(raw: Any, line: int = 0) -> ModelSpecValidationResult:
         effective_batch_size = optimizer_raw.get("effective_batch_size")
         max_epochs = optimizer_raw.get("max_epochs")
         early_stopping = optimizer_raw.get("early_stopping")
+        save_steps = optimizer_raw.get("save_steps", 50)
+        save_total_limit = optimizer_raw.get("save_total_limit", 3)
+        logging_steps = optimizer_raw.get("logging_steps", 10)
 
         if not isinstance(learning_rate, (int, float)) or learning_rate <= 0:
             issues.append(
@@ -339,9 +345,32 @@ def validate_model_spec(raw: Any, line: int = 0) -> ModelSpecValidationResult:
             issues.append(
                 ValidationIssue(line, "optimizer.early_stopping", "early_stopping must be boolean")
             )
+        if _positive_int(save_steps) is None:
+            issues.append(
+                ValidationIssue(line, "optimizer.save_steps", "save_steps must be a positive integer")
+            )
+        if _positive_int(save_total_limit) is None:
+            issues.append(
+                ValidationIssue(
+                    line,
+                    "optimizer.save_total_limit",
+                    "save_total_limit must be a positive integer",
+                )
+            )
+        if _positive_int(logging_steps) is None:
+            issues.append(
+                ValidationIssue(
+                    line,
+                    "optimizer.logging_steps",
+                    "logging_steps must be a positive integer",
+                )
+            )
 
         parsed_effective_batch_size = _positive_int(effective_batch_size)
         parsed_max_epochs = _positive_int(max_epochs)
+        parsed_save_steps = _positive_int(save_steps)
+        parsed_save_total_limit = _positive_int(save_total_limit)
+        parsed_logging_steps = _positive_int(logging_steps)
         if (
             isinstance(learning_rate, (int, float))
             and _is_non_empty_string(scheduler)
@@ -351,6 +380,9 @@ def validate_model_spec(raw: Any, line: int = 0) -> ModelSpecValidationResult:
             and parsed_effective_batch_size is not None
             and parsed_max_epochs is not None
             and isinstance(early_stopping, bool)
+            and parsed_save_steps is not None
+            and parsed_save_total_limit is not None
+            and parsed_logging_steps is not None
         ):
             optimizer = ModelSpecOptimizer(
                 learning_rate=float(learning_rate),
@@ -360,6 +392,9 @@ def validate_model_spec(raw: Any, line: int = 0) -> ModelSpecValidationResult:
                 effective_batch_size=parsed_effective_batch_size,
                 max_epochs=parsed_max_epochs,
                 early_stopping=early_stopping,
+                save_steps=parsed_save_steps,
+                save_total_limit=parsed_save_total_limit,
+                logging_steps=parsed_logging_steps,
             )
 
     inference: ModelSpecInference | None = None

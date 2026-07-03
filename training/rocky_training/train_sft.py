@@ -39,6 +39,26 @@ def resolve_train_base_model(spec: ModelSpec, override: str | None = None) -> st
     return base_model
 
 
+def resolve_resume_checkpoint(output_dir: Path, resume: str | None) -> str | None:
+    if resume is None:
+        return None
+
+    if resume == "latest":
+        checkpoint_root = output_dir / "checkpoints"
+        checkpoints = sorted(
+            checkpoint_root.glob("checkpoint-*"),
+            key=lambda path: int(path.name.split("-")[-1]),
+        )
+        if not checkpoints:
+            raise TrainSftError(f"no checkpoints found in {checkpoint_root}")
+        return str(checkpoints[-1])
+
+    path = Path(resume)
+    if not path.is_dir():
+        raise TrainSftError(f"resume checkpoint not found: {path}")
+    return str(path)
+
+
 def gemma_messages_for_training(row: TrainerExportRow) -> list[dict[str, str]]:
     system_parts = [message.content for message in row.messages if message.role == "system"]
     non_system = [
@@ -124,6 +144,7 @@ def run_sft_training(
     per_device_eval_batch_size: int,
     gradient_accumulation_steps: int | None = None,
     report_to: list[str] | None = None,
+    resume_from_checkpoint: str | None = None,
 ) -> SftTrainingResult:
     _require_train_dependencies()
 
@@ -185,9 +206,11 @@ def run_sft_training(
         weight_decay=spec.optimizer.weight_decay,
         bf16=spec.train_precision == "bf16",
         fp16=spec.train_precision == "fp16",
-        logging_steps=10,
+        logging_steps=spec.optimizer.logging_steps,
         eval_strategy="epoch",
-        save_strategy="epoch",
+        save_strategy="steps",
+        save_steps=spec.optimizer.save_steps,
+        save_total_limit=spec.optimizer.save_total_limit,
         load_best_model_at_end=spec.optimizer.early_stopping,
         metric_for_best_model="eval_loss",
         greater_is_better=False,
@@ -208,7 +231,7 @@ def run_sft_training(
         callbacks=callbacks,
     )
 
-    train_output = trainer.train()
+    train_output = trainer.train(resume_from_checkpoint=resume_from_checkpoint)
     trainer.save_model(str(adapter_dir))
     tokenizer.save_pretrained(adapter_dir)
 
@@ -245,6 +268,7 @@ def build_train_sft_manifest(
     rendered_chat_template_sample: str,
     training: SftTrainingResult | None,
     dry_run: bool,
+    resume_from_checkpoint: str | None = None,
 ) -> dict[str, Any]:
     return {
         "kind": "train-sft",
@@ -268,7 +292,12 @@ def build_train_sft_manifest(
             "effectiveBatchSize": spec.optimizer.effective_batch_size,
             "maxEpochs": spec.optimizer.max_epochs,
             "earlyStopping": spec.optimizer.early_stopping,
+            "saveSteps": spec.optimizer.save_steps,
+            "saveTotalLimit": spec.optimizer.save_total_limit,
+            "loggingSteps": spec.optimizer.logging_steps,
         },
+        "checkpointDir": str(output_dir / "checkpoints"),
+        "resumeFromCheckpoint": resume_from_checkpoint,
         "datasetPath": str(dataset_path),
         "validationDatasetPath": str(validation_dataset_path),
         "trainRowCount": len(train_rows),
@@ -298,12 +327,14 @@ def run_train_sft(
     gradient_accumulation_steps: int | None = None,
     report_to: list[str] | None = None,
     dry_run: bool = False,
+    resume_from_checkpoint: str | None = None,
     train_runner: Callable[..., SftTrainingResult] | None = None,
     tokenizer_loader: Callable[[str], Any] | None = None,
 ) -> dict[str, Any]:
     spec = load_model_spec(spec_path)
     resolved_base_model = resolve_train_base_model(spec, base_model)
     resolved_validation_path = validation_dataset_path or default_validation_dataset_path(dataset_path)
+    resolved_resume = resolve_resume_checkpoint(output_dir, resume_from_checkpoint)
 
     if not resolved_validation_path.is_file():
         raise TrainSftError(f"validation dataset not found: {resolved_validation_path}")
@@ -330,6 +361,7 @@ def run_train_sft(
             per_device_eval_batch_size=per_device_eval_batch_size,
             gradient_accumulation_steps=gradient_accumulation_steps,
             report_to=report_to,
+            resume_from_checkpoint=resolved_resume,
         )
         if not rendered_sample and tokenizer_loader is None:
             rendered_sample = "see trainer tokenizer chat template"
@@ -345,6 +377,7 @@ def run_train_sft(
         rendered_chat_template_sample=rendered_sample,
         training=training,
         dry_run=dry_run,
+        resume_from_checkpoint=resolved_resume,
     )
     write_json(output_dir / "manifest.json", manifest)
     return manifest
