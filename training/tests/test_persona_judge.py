@@ -79,6 +79,10 @@ def test_passes_rocky_persona_combines_deterministic_and_llm() -> None:
     assert passes_deterministic_persona_checks("Certainly, I would be happy to help.") is False
 
 
+def test_deterministic_persona_checks_fail_third_person_grace() -> None:
+    assert passes_deterministic_persona_checks("Grace should replace pump seal.") is False
+
+
 def test_evaluate_gate_summary_uses_llm_persona_judge() -> None:
     results = [
         {

@@ -63,6 +63,10 @@ describe("persona gate composition", () => {
     assert.equal(passesDeterministicPersonaChecks("Certainly, I would be happy to help."), false)
   })
 
+  it("fails third-person Grace instructions", () => {
+    assert.equal(passesDeterministicPersonaChecks("Grace should replace pump seal."), false)
+  })
+
   it("requires llm judge when configured", () => {
     assert.equal(
       passesRockyPersona("Grace, no know Question?", undefined, { requireLlmJudge: true }),

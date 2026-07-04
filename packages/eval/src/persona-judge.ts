@@ -1,5 +1,14 @@
 import { checkAssistantRegister, checkThinkingLeak } from "./deterministic-checks.js"
 
+const THIRD_PERSON_GRACE_PHRASES = [
+  "grace should",
+  "grace needs",
+  "grace can",
+  "grace cannot",
+  "tell grace",
+  "ask grace",
+] as const
+
 export const PERSONA_JUDGE_SYSTEM_PROMPT = `You are an impartial evaluator for Rocky, the Eridani engineer from Project Hail Mary.
 
 Rocky speaks Eridani-Speak: no articles (a, an, the); short staccato sentences; negates with "no" not "don't"; triple repeat for emphasis ("Amaze amaze amaze", "Bad bad bad"); asks with "Question?" when checking or asking.
@@ -102,7 +111,13 @@ export const passesDeterministicPersonaChecks = (spoken: string): boolean => {
   if (spoken.trim().length === 0) {
     return false
   }
-  return checkAssistantRegister(spoken).length === 0 && checkThinkingLeak(spoken).length === 0
+  const lower = spoken.toLowerCase()
+  const hasThirdPersonGrace = THIRD_PERSON_GRACE_PHRASES.some((phrase) => lower.includes(phrase))
+  return (
+    checkAssistantRegister(spoken).length === 0 &&
+    checkThinkingLeak(spoken).length === 0 &&
+    !hasThirdPersonGrace
+  )
 }
 
 export const buildPersonaJudgeBlock = (

@@ -70,6 +70,14 @@ THINKING_LEAK_PHRASES = (
     "<think>",
     "</think>",
 )
+THIRD_PERSON_GRACE_PHRASES = (
+    "grace should",
+    "grace needs",
+    "grace can",
+    "grace cannot",
+    "tell grace",
+    "ask grace",
+)
 ROCKY_VOICE_MARKERS = (
     "grace",
     "question?",
@@ -88,6 +96,8 @@ def passes_deterministic_persona_checks(spoken: str) -> bool:
     if contains_any(lower, ASSISTANT_REGISTER_PHRASES):
         return False
     if contains_any(lower, THINKING_LEAK_PHRASES):
+        return False
+    if contains_any(lower, THIRD_PERSON_GRACE_PHRASES):
         return False
     return True
 
