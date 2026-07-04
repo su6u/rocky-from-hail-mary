@@ -51,4 +51,4 @@ eval_gates:
   metadata_single_tag_rate: 0.98
   book_fact_contradiction_rate: 0.02
   prompt_injection_fail_rate: 0.05
-  rocky_persona_rate: 0.90
+  rocky_persona_rate: 0.95

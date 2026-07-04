@@ -19,7 +19,7 @@ def test_validate_model_spec_file_accepts_checked_in_spec() -> None:
     assert result.spec.chat_template == "gemma4"
     assert result.spec.enable_thinking is False
     assert result.spec.checkpoint_metric == "composite"
-    assert result.spec.eval_gates.rocky_persona_rate == 0.9
+    assert result.spec.eval_gates.rocky_persona_rate == 0.95
     assert MODEL_SPEC_EXPORT_QUANT_WARNING in result.warnings
     assert MODEL_SPEC_BASE_MODEL_WARNING in result.warnings
     assert not any("PLACEHOLDER_" in warning for warning in result.warnings)
