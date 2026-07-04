@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * Generates research/seed-corpus/hand-authored.jsonl — Rocky training corpus.
- * Metadata contract: training/prompts/rocky-system.txt
+ * Metadata contract: contracts/prompts/rocky-system.txt (sync via pnpm sync-contracts)
  */
 import { readFileSync, writeFileSync } from "node:fs"
 import { dirname, join } from "node:path"

@@ -110,7 +110,7 @@ const isNonEmptyString = (value: unknown): value is string =>
 const inList = (value: string, allowed: readonly string[]): boolean => allowed.includes(value)
 
 export const defaultModelSpecPath = (): string =>
-  resolve(import.meta.dirname, "../../../training/specs/rocky-gemma-e4b-v2.yaml")
+  resolve(import.meta.dirname, "../../../configs/rocky-gemma-e4b-v2.yaml")
 
 export const collectModelSpecWarnings = (spec: ModelSpec): string[] => {
   const warnings = [MODEL_SPEC_EXPORT_QUANT_WARNING, MODEL_SPEC_BASE_MODEL_WARNING]

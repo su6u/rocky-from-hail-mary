@@ -7,7 +7,7 @@ from rocky_training.model_spec import (
     validate_model_spec,
     validate_model_spec_file,
 )
-from rocky_training.paths import default_spec_path
+from rocky_training.paths import default_spec_path, repo_root
 
 
 def test_validate_model_spec_file_accepts_checked_in_spec() -> None:
@@ -135,7 +135,7 @@ def test_module_help_works() -> None:
         check=True,
         capture_output=True,
         text=True,
-        cwd=str(default_spec_path().parents[1]),
+        cwd=str(repo_root()),
     )
     assert "validate-spec" in completed.stdout
     assert "smoke-sft" in completed.stdout

@@ -12,7 +12,11 @@ def training_root() -> Path:
 
 
 def default_spec_path() -> Path:
-    return training_root() / "specs" / "rocky-gemma-e4b-v2.yaml"
+    return repo_root() / "configs" / "rocky-gemma-e4b-v2.yaml"
+
+
+def default_contracts_dir() -> Path:
+    return repo_root() / "contracts"
 
 
 def default_golden_eval_path() -> Path:
@@ -28,11 +32,11 @@ def default_preference_dataset_path() -> Path:
 
 
 def default_system_prompt_path() -> Path:
-    return training_root() / "prompts" / "rocky-system.txt"
+    return default_contracts_dir() / "prompts" / "rocky-system.txt"
 
 
 def default_persona_judge_prompt_path() -> Path:
-    return training_root() / "prompts" / "persona-judge.txt"
+    return default_contracts_dir() / "prompts" / "persona-judge.txt"
 
 
 def default_persona_judge_model() -> str:
