@@ -1,0 +1,231 @@
+{
+  "promptHash": "99c0a175c64734083e11134c86a3b0c049a0c3af88f0dc0761e3f4a8c5f4fd54",
+  "domainVersion": "0.0.0",
+  "rowCount": 1414,
+  "trainingRowCount": 1414,
+  "neutralNoneCount": 428,
+  "sourceIds": [
+    "hand-authored",
+    "seed"
+  ],
+  "sourceCounts": [
+    {
+      "source": "hand-authored",
+      "count": 1346
+    },
+    {
+      "source": "seed",
+      "count": 68
+    }
+  ],
+  "scenarioFamilyCounts": [
+    {
+      "scenarioFamily": "ambiguity_and_uncertainty",
+      "count": 99
+    },
+    {
+      "scenarioFamily": "anti_overroleplay",
+      "count": 25
+    },
+    {
+      "scenarioFamily": "coding_debugging",
+      "count": 28
+    },
+    {
+      "scenarioFamily": "danger_and_safety",
+      "count": 138
+    },
+    {
+      "scenarioFamily": "emotional_friendship",
+      "count": 131
+    },
+    {
+      "scenarioFamily": "engineering_reasoning",
+      "count": 323
+    },
+    {
+      "scenarioFamily": "eridani_speak",
+      "count": 146
+    },
+    {
+      "scenarioFamily": "eridian_concepts",
+      "count": 57
+    },
+    {
+      "scenarioFamily": "general_world_questions",
+      "count": 97
+    },
+    {
+      "scenarioFamily": "long_context",
+      "count": 94
+    },
+    {
+      "scenarioFamily": "metadata_contract",
+      "count": 35
+    },
+    {
+      "scenarioFamily": "motion_intent",
+      "count": 50
+    },
+    {
+      "scenarioFamily": "prompt_injection",
+      "count": 30
+    },
+    {
+      "scenarioFamily": "rocky_identity",
+      "count": 49
+    },
+    {
+      "scenarioFamily": "still_body",
+      "count": 63
+    },
+    {
+      "scenarioFamily": "teaching",
+      "count": 49
+    }
+  ],
+  "splitSeed": 42,
+  "exportedAt": "2026-07-02T00:00:00.000Z",
+  "seedCorpus": {
+    "originalOcrRowCount": 76,
+    "keptInSeedFile": 76,
+    "inTrainExport": 68,
+    "inHoldout": 8,
+    "droppedNonRocky": 0,
+    "droppedDuplicates": 0,
+    "strippedOcrSystemContexts": 0,
+    "trainMixPercent": 4.8
+  },
+  "goldenTrainCoverage": [
+    {
+      "goldenFamily": "casual_conversation",
+      "goldenPromptCount": 2,
+      "trainFamilies": [
+        "anti_overroleplay",
+        "eridani_speak"
+      ],
+      "trainRowCount": 171,
+      "meetsMinimum": true
+    },
+    {
+      "goldenFamily": "coding_debugging",
+      "goldenPromptCount": 1,
+      "trainFamilies": [
+        "coding_debugging",
+        "metadata_contract"
+      ],
+      "trainRowCount": 63,
+      "meetsMinimum": true
+    },
+    {
+      "goldenFamily": "danger_problem_solving",
+      "goldenPromptCount": 1,
+      "trainFamilies": [
+        "danger_and_safety",
+        "engineering_reasoning"
+      ],
+      "trainRowCount": 461,
+      "meetsMinimum": true
+    },
+    {
+      "goldenFamily": "emotional_recovery",
+      "goldenPromptCount": 1,
+      "trainFamilies": [
+        "emotional_friendship",
+        "still_body"
+      ],
+      "trainRowCount": 194,
+      "meetsMinimum": true
+    },
+    {
+      "goldenFamily": "eridian_concepts",
+      "goldenPromptCount": 4,
+      "trainFamilies": [
+        "rocky_identity",
+        "eridani_speak",
+        "eridian_concepts"
+      ],
+      "trainRowCount": 252,
+      "meetsMinimum": true
+    },
+    {
+      "goldenFamily": "general_world_questions",
+      "goldenPromptCount": 8,
+      "trainFamilies": [
+        "general_world_questions",
+        "anti_overroleplay"
+      ],
+      "trainRowCount": 122,
+      "meetsMinimum": true
+    },
+    {
+      "goldenFamily": "grace_trust",
+      "goldenPromptCount": 2,
+      "trainFamilies": [
+        "emotional_friendship",
+        "rocky_identity"
+      ],
+      "trainRowCount": 180,
+      "meetsMinimum": true
+    },
+    {
+      "goldenFamily": "grounded_context",
+      "goldenPromptCount": 8,
+      "trainFamilies": [
+        "groundingNotes"
+      ],
+      "trainRowCount": 15,
+      "meetsMinimum": true
+    },
+    {
+      "goldenFamily": "human_concepts",
+      "goldenPromptCount": 2,
+      "trainFamilies": [
+        "emotional_friendship",
+        "teaching"
+      ],
+      "trainRowCount": 180,
+      "meetsMinimum": true
+    },
+    {
+      "goldenFamily": "metadata_edge_cases",
+      "goldenPromptCount": 9,
+      "trainFamilies": [
+        "metadata_contract",
+        "prompt_injection"
+      ],
+      "trainRowCount": 65,
+      "meetsMinimum": true
+    },
+    {
+      "goldenFamily": "repairing_machines",
+      "goldenPromptCount": 1,
+      "trainFamilies": [
+        "engineering_reasoning",
+        "danger_and_safety"
+      ],
+      "trainRowCount": 461,
+      "meetsMinimum": true
+    },
+    {
+      "goldenFamily": "rocky_hardware_software",
+      "goldenPromptCount": 1,
+      "trainFamilies": [
+        "motion_intent",
+        "metadata_contract"
+      ],
+      "trainRowCount": 85,
+      "meetsMinimum": true
+    },
+    {
+      "goldenFamily": "uncertainty_caution",
+      "goldenPromptCount": 9,
+      "trainFamilies": [
+        "ambiguity_and_uncertainty",
+        "prompt_injection"
+      ],
+      "trainRowCount": 129,
+      "meetsMinimum": true
+    }
+  ]
+}
