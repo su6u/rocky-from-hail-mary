@@ -12,12 +12,24 @@ def training_root() -> Path:
 
 
 def default_spec_path() -> Path:
-    return training_root() / "specs" / "rocky-gemma-e4b.yaml"
+    return training_root() / "specs" / "rocky-gemma-e4b-v2.yaml"
 
 
 def default_golden_eval_path() -> Path:
     return repo_root() / "research" / "seed-corpus" / "evaluation-golden-v2.jsonl"
 
 
+def default_persona_eval_path() -> Path:
+    return repo_root() / "research" / "seed-corpus" / "evaluation-persona-holdout.jsonl"
+
+
 def default_system_prompt_path() -> Path:
     return training_root() / "prompts" / "rocky-system.txt"
+
+
+def default_persona_judge_prompt_path() -> Path:
+    return training_root() / "prompts" / "persona-judge.txt"
+
+
+def default_persona_judge_model() -> str:
+    return DEFAULT_GEMMA_E4B_IT
