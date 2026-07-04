@@ -42,16 +42,19 @@ export const generateModelfile = ({
     `# ${MODELFILE_GENERATED_MARKER}`,
     `# spec: ${spec.id}`,
     `# prompt_hash: ${promptHash()}`,
-    `FROM ${resolveModelfileGgufFrom(ggufPath)}`,
-    `SYSTEM """${systemPrompt}"""`,
-    `PARAMETER temperature ${spec.inference.temperature}`,
-    `PARAMETER top_p ${spec.inference.top_p}`,
-    `PARAMETER num_ctx ${spec.inference.num_ctx}`,
+    `from ${resolveModelfileGgufFrom(ggufPath)}`,
+    `parameter temperature ${spec.inference.temperature}`,
+    `parameter top_p ${spec.inference.top_p}`,
+    `parameter num_ctx ${spec.inference.num_ctx}`,
   ]
 
   for (const stop of spec.inference.stop) {
-    lines.push(`STOP ${JSON.stringify(stop)}`)
+    lines.push(`parameter stop ${JSON.stringify(stop)}`)
   }
+
+  lines.push("renderer gemma4")
+  lines.push("parser gemma4")
+  lines.push(`system """${systemPrompt}"""`)
 
   return `${lines.join("\n")}\n`
 }

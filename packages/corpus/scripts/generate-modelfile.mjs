@@ -1,9 +1,13 @@
 import { mkdir, writeFile } from "node:fs/promises"
-import { dirname, resolve } from "node:path"
+import { dirname, isAbsolute, resolve } from "node:path"
 
 import { generateModelfile, defaultModelSpecPath, loadModelSpec } from "../dist/index.js"
 
 const usage = `usage: pnpm --filter @rocky/corpus generate-modelfile -- [--spec <path>] [--gguf <path>] [--output <path>]`
+
+const repoRoot = resolve(import.meta.dirname, "../../..")
+
+const resolveRepoPath = (path) => (isAbsolute(path) ? path : resolve(repoRoot, path))
 
 const readArgs = (argv) => {
   const args = new Map()
@@ -21,10 +25,10 @@ const readArgs = (argv) => {
 
 const main = async () => {
   const args = readArgs(process.argv.slice(2))
-  const specPath = resolve(args.get("spec") ?? defaultModelSpecPath())
+  const specPath = resolveRepoPath(args.get("spec") ?? defaultModelSpecPath())
   const spec = loadModelSpec(specPath)
   const ggufPath = args.get("gguf") ?? spec.artifacts.gguf_path
-  const outputPath = resolve(args.get("output") ?? spec.artifacts.modelfile_path)
+  const outputPath = resolveRepoPath(args.get("output") ?? spec.artifacts.modelfile_path)
   const modelfile = generateModelfile({ spec, ggufPath })
 
   await mkdir(dirname(outputPath), { recursive: true })
