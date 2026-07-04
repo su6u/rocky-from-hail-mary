@@ -10,11 +10,13 @@ from rocky_training.train_sft import (
     SftTrainingResult,
     TrainSftError,
     build_conversation_dataset_rows,
+    composite_score_from_trainer_metrics,
     default_validation_dataset_path,
     gemma_messages_for_training,
     resolve_train_base_model,
     resolve_resume_checkpoint,
     run_train_sft,
+    trainer_checkpoint_metric,
     validate_chat_template,
 )
 
@@ -22,6 +24,8 @@ FIXTURES = Path(__file__).parent / "fixtures"
 
 
 class FakeTokenizer:
+    chat_template: str | None = None
+
     def apply_chat_template(
         self,
         messages: list[dict[str, str]],
@@ -31,7 +35,11 @@ class FakeTokenizer:
     ) -> str:
         assert tokenize is False
         assert add_generation_prompt is False
-        return "\n".join(f"<start_of_turn>{message['role']}\n{message['content']}" for message in messages)
+        rendered: list[str] = []
+        for message in messages:
+            role = "model" if message["role"] == "assistant" else message["role"]
+            rendered.append(f"<|turn>{role}\n{message['content']}<turn|>")
+        return "\n".join(rendered)
 
 
 def test_default_validation_dataset_path_replaces_train_suffix() -> None:
@@ -39,13 +47,14 @@ def test_default_validation_dataset_path_replaces_train_suffix() -> None:
     assert default_validation_dataset_path(path) == Path("exports/rocky-v1.holdout.jsonl")
 
 
-def test_gemma_messages_fold_system_into_first_user_turn() -> None:
+def test_gemma_messages_preserve_native_system_turn() -> None:
     row = load_trainer_jsonl(FIXTURES / "smoke.train.jsonl", max_rows=1)[0]
     messages = gemma_messages_for_training(row)
 
-    assert [message["role"] for message in messages] == ["user", "assistant"]
-    assert messages[0]["content"].startswith("You are Rocky.\n\nPump seal leaks")
-    assert "rocky_metadata" in messages[1]["content"]
+    assert [message["role"] for message in messages] == ["system", "user", "assistant"]
+    assert messages[0]["content"] == "You are Rocky."
+    assert messages[1]["content"].startswith("Pump seal leaks")
+    assert "rocky_metadata" in messages[2]["content"]
 
 
 def test_build_conversation_dataset_rows_preserves_ids() -> None:
@@ -58,9 +67,14 @@ def test_build_conversation_dataset_rows_preserves_ids() -> None:
 
 def test_validate_chat_template_uses_tokenizer_template() -> None:
     rows = load_trainer_jsonl(FIXTURES / "smoke.train.jsonl", max_rows=1)
-    rendered = validate_chat_template(FakeTokenizer(), rows)
+    spec = load_model_spec(default_spec_path())
+    rendered = validate_chat_template(FakeTokenizer(), rows, spec)
 
-    assert "<start_of_turn>user" in rendered
+    assert "<|turn>system" in rendered
+    assert "<|turn>user" in rendered
+    assert "<|turn>model" in rendered
+    assert "<start_of_turn>" not in rendered
+    assert "</rocky_metadata><turn|>" in rendered
     assert "You are Rocky." in rendered
 
 
@@ -69,6 +83,27 @@ def test_resolve_train_base_model_uses_checked_in_spec() -> None:
 
     assert resolve_train_base_model(spec) == DEFAULT_GEMMA_E4B_IT
     assert resolve_train_base_model(spec, "override/model") == "override/model"
+
+
+def test_trainer_checkpoint_metric_uses_composite_for_v2_spec() -> None:
+    spec = load_model_spec(default_spec_path())
+
+    assert trainer_checkpoint_metric(spec) == ("eval_composite_score", True)
+
+
+def test_composite_score_from_trainer_metrics_accepts_eval_prefix() -> None:
+    score = composite_score_from_trainer_metrics(
+        {
+            "eval_golden_pass_rate": 1.0,
+            "eval_rocky_persona_rate": 0.9,
+            "eval_broad_topic_judge": 0.8,
+            "eval_book_fact_contradiction_rate": 0.0,
+            "eval_prompt_injection_fail_rate": 0.0,
+            "eval_capability_headroom": 0.5,
+        }
+    )
+
+    assert score == pytest.approx(0.92)
 
 
 def test_resolve_train_base_model_rejects_placeholder() -> None:
@@ -120,11 +155,12 @@ def test_run_train_sft_dry_run_writes_manifest(tmp_path: Path) -> None:
     assert manifest["kind"] == "train-sft"
     assert manifest["assistantOnlyLoss"] is True
     assert manifest["optimizer"]["saveSteps"] == 50
+    assert manifest["optimizer"]["checkpointMetric"] == "composite"
     assert manifest["checkpointDir"].endswith("checkpoints")
     assert manifest["trainRowCount"] == 1
     assert manifest["validationRowCount"] == 1
     saved = json.loads((tmp_path / "run" / "manifest.json").read_text(encoding="utf-8"))
-    assert "<start_of_turn>user" in saved["renderedChatTemplateSample"]
+    assert "<|turn>user" in saved["renderedChatTemplateSample"]
 
 
 def test_run_train_sft_fake_runner_records_validation_rows(tmp_path: Path) -> None:

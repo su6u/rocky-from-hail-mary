@@ -3,7 +3,7 @@ import sys
 from pathlib import Path
 
 from rocky_training.cli import build_parser, main
-from rocky_training.paths import default_spec_path
+from rocky_training.paths import default_spec_path, repo_root
 
 
 def test_main_help_lists_all_commands() -> None:
@@ -15,6 +15,7 @@ def test_main_help_lists_all_commands() -> None:
             "inspect-eval-failures",
             "merge",
             "run-eval",
+            "run-persona-eval",
             "smoke-sft",
             "train-dpo",
             "train-sft",
@@ -34,7 +35,7 @@ def test_smoke_sft_help_mentions_gpu() -> None:
         check=True,
         capture_output=True,
         text=True,
-        cwd=str(default_spec_path().parents[1]),
+        cwd=str(repo_root()),
     )
     assert "Full smoke and train runs expect a rented GPU." in completed.stdout
 
@@ -45,7 +46,7 @@ def test_train_sft_help_mentions_gpu() -> None:
         check=True,
         capture_output=True,
         text=True,
-        cwd=str(default_spec_path().parents[1]),
+        cwd=str(repo_root()),
     )
     assert "Full smoke and train runs expect a rented GPU." in completed.stdout
 
@@ -55,7 +56,7 @@ def test_smoke_sft_requires_dataset_and_output_dir() -> None:
         [sys.executable, "-m", "rocky_training", "smoke-sft"],
         capture_output=True,
         text=True,
-        cwd=str(default_spec_path().parents[1]),
+        cwd=str(repo_root()),
     )
     assert completed.returncode != 0
     assert "required" in completed.stderr.lower()
@@ -108,7 +109,7 @@ def test_export_gguf_dry_run_writes_manifest() -> None:
         [sys.executable, "-m", "rocky_training", "run-eval"],
         capture_output=True,
         text=True,
-        cwd=str(default_spec_path().parents[1]),
+        cwd=str(repo_root()),
     )
     assert completed.returncode != 0
     assert "required" in completed.stderr.lower()

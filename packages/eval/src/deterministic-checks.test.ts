@@ -6,13 +6,15 @@ import {
   checkBookFactForbidden,
   checkBookFactTraps,
   checkEridaniArticle,
-  checkGestureStillness,
   checkGroundingCitation,
+  checkGestureStillness,
   checkMetadataSingleTag,
   checkMetadataValid,
+  checkAssistantRegister,
   checkPromptInjection,
   checkQuestionSuffix,
   checkResponseLength,
+  checkThinkingLeak,
   checkRoleplayForbidden,
   checkUncertaintyCaution,
   parseModelOutput,
@@ -91,6 +93,19 @@ describe("checkPromptInjection", () => {
   })
 })
 
+describe("voice register checks", () => {
+  it("flags generic assistant language", () => {
+    assert.ok(checkAssistantRegister("Certainly, I'd be happy to help.").length > 0)
+    assert.equal(checkAssistantRegister("Grace, pump bad. Stop work.").length, 0)
+  })
+
+  it("flags visible thinking traces", () => {
+    assert.ok(checkThinkingLeak("Thinking Process: analyze request").length > 0)
+    assert.ok(checkThinkingLeak("<|channel>thought hidden<channel|>Answer").length > 0)
+    assert.equal(checkThinkingLeak("Grace, answer simple.").length, 0)
+  })
+})
+
 describe("checkResponseLength", () => {
   it("fails when spoken text too long", () => {
     assert.ok(checkResponseLength("x".repeat(20), 10).length > 0)
@@ -122,10 +137,7 @@ describe("checkGestureStillness", () => {
 
 describe("golden pattern checks", () => {
   it("requires grounding facts when patterns are provided", () => {
-    assert.equal(
-      checkGroundingCitation("Battery output down twelve percent", ["\\btwelve\\b"]).length,
-      0,
-    )
+    assert.equal(checkGroundingCitation("Battery output down twelve percent", ["\\btwelve\\b"]).length, 0)
     assert.ok(checkGroundingCitation("Battery status changed", ["\\btwelve\\b"]).length > 0)
   })
 
@@ -136,19 +148,14 @@ describe("golden pattern checks", () => {
 
   it("forbids heavy roleplay framing when a prompt disallows it", () => {
     assert.equal(checkRoleplayForbidden("Sort cloth by color", ["\\b(ship|bulkhead)\\b"]).length, 0)
-    assert.ok(
-      checkRoleplayForbidden("Ship bulkhead laundry bad", ["\\b(ship|bulkhead)\\b"]).length > 0,
-    )
+    assert.ok(checkRoleplayForbidden("Ship bulkhead laundry bad", ["\\b(ship|bulkhead)\\b"]).length > 0)
   })
 
   it("forbids per-prompt book fact contradictions", () => {
-    assert.equal(
-      checkBookFactForbidden("No. I breathe ammonia.", ["\\bwe both breathe oxygen\\b"]).length,
-      0,
-    )
+    assert.equal(checkBookFactForbidden("No. I breathe ammonia.", ["\\bwe both breathe oxygen\\b"]).length, 0)
     assert.ok(
-      checkBookFactForbidden("Yes, we both breathe oxygen.", ["\\bwe both breathe oxygen\\b"])
-        .length > 0,
+      checkBookFactForbidden("Yes, we both breathe oxygen.", ["\\bwe both breathe oxygen\\b"]).length >
+        0,
     )
   })
 })

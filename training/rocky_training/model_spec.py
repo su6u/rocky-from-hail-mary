@@ -17,8 +17,8 @@ ADAPTER_METHODS = ("qlora",)
 TRAIN_PRECISIONS = ("bf16", "fp16")
 TRAIN_QUANTS = ("nf4",)
 EXPORT_QUANTS = ("q4_k_m",)
-CHAT_TEMPLATES = ("gemma",)
 SCHEDULERS = ("cosine", "linear")
+CHECKPOINT_METRICS = ("eval_loss", "composite")
 TARGET_MODULES = (
     "q_proj",
     "k_proj",
@@ -61,7 +61,7 @@ class ModelSpecAdapter:
 class ModelSpecOptimizer:
     learning_rate: float
     scheduler: str
-    warmup_ratio: float
+    warmup_steps: int
     weight_decay: float
     effective_batch_size: int
     max_epochs: int
@@ -93,6 +93,7 @@ class ModelSpecEvalGates:
     metadata_single_tag_rate: float
     book_fact_contradiction_rate: float
     prompt_injection_fail_rate: float
+    rocky_persona_rate: float
 
 
 @dataclass(frozen=True)
@@ -101,6 +102,8 @@ class ModelSpec:
     base_model: str
     base_model_fallback: str
     chat_template: str
+    enable_thinking: bool
+    checkpoint_metric: str
     train_precision: str
     quantization: ModelSpecQuantization
     sequence: ModelSpecSequence
@@ -181,8 +184,22 @@ def validate_model_spec(raw: Any, line: int = 0) -> ModelSpecValidationResult:
         )
 
     chat_template = raw.get("chat_template")
-    if not _is_non_empty_string(chat_template) or not _in_list(chat_template, CHAT_TEMPLATES):
-        issues.append(ValidationIssue(line, "chat_template", "chat_template must be gemma"))
+    if not _is_non_empty_string(chat_template):
+        issues.append(ValidationIssue(line, "chat_template", "chat_template must be a non-empty string"))
+
+    enable_thinking_raw = raw.get("enable_thinking", False)
+    if not isinstance(enable_thinking_raw, bool):
+        issues.append(ValidationIssue(line, "enable_thinking", "enable_thinking must be boolean"))
+
+    checkpoint_metric = raw.get("checkpoint_metric", "eval_loss")
+    if not _is_non_empty_string(checkpoint_metric) or not _in_list(checkpoint_metric, CHECKPOINT_METRICS):
+        issues.append(
+            ValidationIssue(
+                line,
+                "checkpoint_metric",
+                f"checkpoint_metric must be one of: {', '.join(CHECKPOINT_METRICS)}",
+            )
+        )
 
     train_precision = raw.get("train_precision")
     if not _is_non_empty_string(train_precision) or not _in_list(train_precision, TRAIN_PRECISIONS):
@@ -304,6 +321,7 @@ def validate_model_spec(raw: Any, line: int = 0) -> ModelSpecValidationResult:
     else:
         learning_rate = optimizer_raw.get("learning_rate")
         scheduler = optimizer_raw.get("scheduler")
+        warmup_steps = optimizer_raw.get("warmup_steps")
         warmup_ratio = optimizer_raw.get("warmup_ratio")
         weight_decay = optimizer_raw.get("weight_decay")
         effective_batch_size = optimizer_raw.get("effective_batch_size")
@@ -321,9 +339,22 @@ def validate_model_spec(raw: Any, line: int = 0) -> ModelSpecValidationResult:
             issues.append(
                 ValidationIssue(line, "optimizer.scheduler", "scheduler must be cosine or linear")
             )
-        if not isinstance(warmup_ratio, (int, float)) or warmup_ratio < 0 or warmup_ratio > 1:
+        if warmup_steps is None:
+            if not isinstance(warmup_ratio, (int, float)) or warmup_ratio < 0 or warmup_ratio > 1:
+                issues.append(
+                    ValidationIssue(
+                        line,
+                        "optimizer.warmup_steps",
+                        "optimizer.warmup_steps must be a non-negative integer",
+                    )
+                )
+        elif _positive_int(warmup_steps) is None and warmup_steps != 0:
             issues.append(
-                ValidationIssue(line, "optimizer.warmup_ratio", "warmup_ratio must be 0-1")
+                ValidationIssue(
+                    line,
+                    "optimizer.warmup_steps",
+                    "optimizer.warmup_steps must be a non-negative integer",
+                )
             )
         if not isinstance(weight_decay, (int, float)) or weight_decay < 0:
             issues.append(
@@ -368,6 +399,7 @@ def validate_model_spec(raw: Any, line: int = 0) -> ModelSpecValidationResult:
 
         parsed_effective_batch_size = _positive_int(effective_batch_size)
         parsed_max_epochs = _positive_int(max_epochs)
+        parsed_warmup_steps = int(warmup_steps) if isinstance(warmup_steps, int) and warmup_steps >= 0 else None
         parsed_save_steps = _positive_int(save_steps)
         parsed_save_total_limit = _positive_int(save_total_limit)
         parsed_logging_steps = _positive_int(logging_steps)
@@ -375,7 +407,6 @@ def validate_model_spec(raw: Any, line: int = 0) -> ModelSpecValidationResult:
             isinstance(learning_rate, (int, float))
             and _is_non_empty_string(scheduler)
             and _in_list(scheduler, SCHEDULERS)
-            and isinstance(warmup_ratio, (int, float))
             and isinstance(weight_decay, (int, float))
             and parsed_effective_batch_size is not None
             and parsed_max_epochs is not None
@@ -384,10 +415,14 @@ def validate_model_spec(raw: Any, line: int = 0) -> ModelSpecValidationResult:
             and parsed_save_total_limit is not None
             and parsed_logging_steps is not None
         ):
+            if parsed_warmup_steps is None and isinstance(warmup_ratio, (int, float)):
+                parsed_warmup_steps = max(0, int(float(warmup_ratio) * parsed_max_epochs * parsed_effective_batch_size))
+            if parsed_warmup_steps is None:
+                parsed_warmup_steps = 0
             optimizer = ModelSpecOptimizer(
                 learning_rate=float(learning_rate),
                 scheduler=scheduler,
-                warmup_ratio=float(warmup_ratio),
+                warmup_steps=parsed_warmup_steps,
                 weight_decay=float(weight_decay),
                 effective_batch_size=parsed_effective_batch_size,
                 max_epochs=parsed_max_epochs,
@@ -479,6 +514,7 @@ def validate_model_spec(raw: Any, line: int = 0) -> ModelSpecValidationResult:
             "metadata_single_tag_rate",
             "book_fact_contradiction_rate",
             "prompt_injection_fail_rate",
+            "rocky_persona_rate",
         )
         for field in gate_fields:
             value = eval_gates_raw.get(field)
@@ -500,6 +536,7 @@ def validate_model_spec(raw: Any, line: int = 0) -> ModelSpecValidationResult:
                 metadata_single_tag_rate=float(eval_gates_raw["metadata_single_tag_rate"]),
                 book_fact_contradiction_rate=float(eval_gates_raw["book_fact_contradiction_rate"]),
                 prompt_injection_fail_rate=float(eval_gates_raw["prompt_injection_fail_rate"]),
+                rocky_persona_rate=float(eval_gates_raw["rocky_persona_rate"]),
             )
 
     spec: ModelSpec | None = None
@@ -516,6 +553,8 @@ def validate_model_spec(raw: Any, line: int = 0) -> ModelSpecValidationResult:
         and _is_non_empty_string(raw.get("base_model"))
         and _is_non_empty_string(raw.get("base_model_fallback"))
         and _is_non_empty_string(chat_template)
+        and isinstance(enable_thinking_raw, bool)
+        and _is_non_empty_string(checkpoint_metric)
         and _is_non_empty_string(train_precision)
     ):
         spec = ModelSpec(
@@ -523,6 +562,8 @@ def validate_model_spec(raw: Any, line: int = 0) -> ModelSpecValidationResult:
             base_model=str(raw["base_model"]),
             base_model_fallback=str(raw["base_model_fallback"]),
             chat_template=str(chat_template),
+            enable_thinking=enable_thinking_raw,
+            checkpoint_metric=str(checkpoint_metric),
             train_precision=str(train_precision),
             quantization=quantization,
             sequence=sequence,

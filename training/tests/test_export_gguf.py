@@ -39,7 +39,9 @@ def test_run_export_gguf_fake_runner(tmp_path: Path) -> None:
     (merged_dir / "config.json").write_text("{}", encoding="utf-8")
     output_path = tmp_path / "rocky-q4_k_m.gguf"
     convert_script = tmp_path / "convert.py"
+    quantize_binary = tmp_path / "llama-quantize"
     convert_script.write_text("print('ok')", encoding="utf-8")
+    quantize_binary.write_text("#!/bin/sh\n", encoding="utf-8")
 
     def fake_runner(**kwargs: object) -> ExportGgufResult:
         assert kwargs["merged_dir"] == merged_dir
@@ -48,6 +50,7 @@ def test_run_export_gguf_fake_runner(tmp_path: Path) -> None:
             output_path=str(output_path),
             outtype="q4_k_m",
             convert_script=str(convert_script),
+            quantize_binary=str(quantize_binary),
         )
 
     manifest = run_export_gguf(
@@ -55,11 +58,13 @@ def test_run_export_gguf_fake_runner(tmp_path: Path) -> None:
         merged_dir=merged_dir,
         output_path=output_path,
         convert_script=convert_script,
+        quantize_binary=quantize_binary,
         export_runner=fake_runner,
     )
 
     assert manifest["dryRun"] is False
     assert manifest["convertScript"] == str(convert_script)
+    assert manifest["quantizeBinary"] == str(quantize_binary)
 
 
 def test_resolve_convert_script_requires_existing_file(tmp_path: Path) -> None:

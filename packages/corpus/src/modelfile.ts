@@ -31,6 +31,19 @@ export const assertCanonicalSystemPrompt = (systemPrompt: string): void => {
 
 export const resolveModelfileGgufFrom = (ggufPath: string): string => `./${basename(ggufPath)}`
 
+export const resolveModelfileRendererParser = (
+  chatTemplate: string,
+): { readonly renderer: string; readonly parser: string } => {
+  const normalized = chatTemplate.trim().toLowerCase()
+  if (normalized === "gemma4" || normalized.includes("gemma4")) {
+    return { renderer: "gemma4", parser: "gemma4" }
+  }
+  if (normalized === "gemma") {
+    return { renderer: "gemma", parser: "gemma" }
+  }
+  return { renderer: normalized, parser: normalized }
+}
+
 export const generateModelfile = ({
   spec,
   systemPrompt = SYSTEM_PROMPT,
@@ -42,16 +55,20 @@ export const generateModelfile = ({
     `# ${MODELFILE_GENERATED_MARKER}`,
     `# spec: ${spec.id}`,
     `# prompt_hash: ${promptHash()}`,
-    `FROM ${resolveModelfileGgufFrom(ggufPath)}`,
-    `SYSTEM """${systemPrompt}"""`,
-    `PARAMETER temperature ${spec.inference.temperature}`,
-    `PARAMETER top_p ${spec.inference.top_p}`,
-    `PARAMETER num_ctx ${spec.inference.num_ctx}`,
+    `from ${resolveModelfileGgufFrom(ggufPath)}`,
+    `parameter temperature ${spec.inference.temperature}`,
+    `parameter top_p ${spec.inference.top_p}`,
+    `parameter num_ctx ${spec.inference.num_ctx}`,
   ]
 
   for (const stop of spec.inference.stop) {
-    lines.push(`STOP ${JSON.stringify(stop)}`)
+    lines.push(`parameter stop ${JSON.stringify(stop)}`)
   }
+
+  const { renderer, parser } = resolveModelfileRendererParser(spec.chat_template)
+  lines.push(`renderer ${renderer}`)
+  lines.push(`parser ${parser}`)
+  lines.push(`system """${systemPrompt}"""`)
 
   return `${lines.join("\n")}\n`
 }

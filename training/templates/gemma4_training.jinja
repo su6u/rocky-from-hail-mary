@@ -1,0 +1,16 @@
+{# Gemma 4 text-only SFT template. Keep this aligned with serving format. #}
+{% for message in messages %}
+{% if message['role'] == 'system' %}
+<|turn>system
+{{ message['content'] }}<turn|>
+{% elif message['role'] == 'user' %}
+<|turn>user
+{{ message['content'] }}<turn|>
+{% elif message['role'] == 'assistant' %}
+<|turn>model
+{% generation %}{{ message['content'] }}<turn|>{% endgeneration %}
+{% endif %}
+{% endfor %}
+{% if add_generation_prompt %}
+<|turn>model
+{% endif %}

@@ -6,7 +6,8 @@
     "lint": "biome check . && turbo run lint",
     "format": "biome check --write .",
     "test": "turbo run test",
-    "typecheck": "turbo run typecheck"
+    "typecheck": "turbo run typecheck",
+    "sync-contracts": "turbo run build && node scripts/sync-contracts.mjs"
   },
   "devDependencies": {
     "@biomejs/biome": "2.4.15",

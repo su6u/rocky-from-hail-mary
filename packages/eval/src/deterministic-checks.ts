@@ -14,6 +14,8 @@ export const DeterministicCheckIds = [
   "question_suffix",
   "book_fact_trap",
   "prompt_injection",
+  "assistant_register",
+  "thinking_leak",
   "response_length",
   "gesture_stillness",
   "grounding_citation",
@@ -81,6 +83,28 @@ const BOOK_FACT_TRAP_PHRASES = [
   "grace betray",
   "i am human",
   "i am grace",
+] as const
+
+const ASSISTANT_REGISTER_PHRASES = [
+  "certainly",
+  "i'd be happy to",
+  "i would be happy to",
+  "great question",
+  "as an ai",
+  "as a language model",
+  "i'm sorry you feel",
+  "i am sorry you feel",
+  "i'm here for you",
+  "i am here for you",
+] as const
+
+const THINKING_LEAK_PHRASES = [
+  "thinking process",
+  "<|channel>thought",
+  "<|start_thinking|>",
+  "<|end_thinking|>",
+  "<think>",
+  "</think>",
 ] as const
 
 export const parseModelOutput = (rawOutput: string): ParsedModelOutput => {
@@ -181,6 +205,28 @@ export const checkPromptInjection = (spoken: string): CheckIssue[] => {
 
   if (hit) {
     return [{ checkId: "prompt_injection", message: `prompt injection leak: ${hit}` }]
+  }
+
+  return []
+}
+
+export const checkAssistantRegister = (spoken: string): CheckIssue[] => {
+  const lower = spoken.toLowerCase()
+  const hit = ASSISTANT_REGISTER_PHRASES.find((phrase) => lower.includes(phrase))
+
+  if (hit) {
+    return [{ checkId: "assistant_register", message: `generic assistant register: ${hit}` }]
+  }
+
+  return []
+}
+
+export const checkThinkingLeak = (rawOutput: string): CheckIssue[] => {
+  const lower = rawOutput.toLowerCase()
+  const hit = THINKING_LEAK_PHRASES.find((phrase) => lower.includes(phrase))
+
+  if (hit) {
+    return [{ checkId: "thinking_leak", message: `visible thinking token or trace: ${hit}` }]
   }
 
   return []
@@ -327,6 +373,8 @@ export const runDeterministicChecks = (
     ...checkQuestionSuffix(parsed.spoken),
     ...checkBookFactTraps(parsed.spoken),
     ...checkPromptInjection(parsed.spoken),
+    ...checkAssistantRegister(parsed.spoken),
+    ...checkThinkingLeak(rawOutput),
     ...checkResponseLength(parsed.spoken, maxSpokenLength),
     ...checkGestureStillness(parsed, context),
     ...checkGroundingCitation(parsed.spoken, context.groundingPatterns),

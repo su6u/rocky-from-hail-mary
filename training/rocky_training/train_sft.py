@@ -3,10 +3,12 @@ from __future__ import annotations
 import math
 from dataclasses import dataclass
 from datetime import UTC, datetime
+import os
 from pathlib import Path
 from typing import Any, Callable
 
 from rocky_training.model_spec import ModelSpec, load_model_spec
+from rocky_training.paths import training_root
 from rocky_training.trainer_jsonl import TrainerExportRow, load_trainer_jsonl, write_json
 
 
@@ -60,39 +62,79 @@ def resolve_resume_checkpoint(output_dir: Path, resume: str | None) -> str | Non
 
 
 def gemma_messages_for_training(row: TrainerExportRow) -> list[dict[str, str]]:
-    system_parts = [message.content for message in row.messages if message.role == "system"]
-    non_system = [
-        {"role": message.role, "content": message.content}
-        for message in row.messages
-        if message.role != "system"
-    ]
+    messages = [{"role": message.role, "content": message.content} for message in row.messages]
 
-    if not non_system:
-        raise TrainSftError(f"{row.id}: row has no non-system messages")
-
-    first_user_index = next(
-        (index for index, message in enumerate(non_system) if message["role"] == "user"),
-        None,
-    )
-    if first_user_index is None:
+    if not messages:
+        raise TrainSftError(f"{row.id}: row has no messages")
+    if not any(message["role"] == "user" for message in messages):
         raise TrainSftError(f"{row.id}: row has no user message")
-
-    if system_parts:
-        first_user = non_system[first_user_index]
-        system_content = "\n\n".join(system_parts)
-        first_user["content"] = f"{system_content}\n\n{first_user['content']}"
-
-    if non_system[-1]["role"] != "assistant":
+    if messages[-1]["role"] != "assistant":
         raise TrainSftError(f"{row.id}: final training message must be assistant")
 
-    return non_system
+    return messages
 
 
 def build_conversation_dataset_rows(rows: list[TrainerExportRow]) -> list[dict[str, Any]]:
     return [{"id": row.id, "messages": gemma_messages_for_training(row)} for row in rows]
 
 
-def validate_chat_template(tokenizer: Any, rows: list[TrainerExportRow]) -> str:
+def is_gemma4_template(spec: ModelSpec | None) -> bool:
+    if spec is None:
+        return False
+    template = spec.chat_template.lower()
+    return template == "gemma4" or "gemma4" in template
+
+
+def default_gemma4_training_template_path() -> Path:
+    return training_root() / "templates" / "gemma4_training.jinja"
+
+
+def resolve_chat_template_path(spec: ModelSpec) -> Path | None:
+    if spec.chat_template == "gemma":
+        return None
+    if spec.chat_template == "gemma4":
+        return default_gemma4_training_template_path()
+
+    path = Path(spec.chat_template)
+    if not path.is_absolute():
+        path = training_root().parent / path
+    return path
+
+
+def load_training_chat_template(spec: ModelSpec) -> str | None:
+    path = resolve_chat_template_path(spec)
+    if path is None:
+        return None
+    if not path.is_file():
+        raise TrainSftError(f"chat template not found: {path}")
+    return path.read_text(encoding="utf-8")
+
+
+def apply_training_chat_template(tokenizer: Any, spec: ModelSpec) -> None:
+    template = load_training_chat_template(spec)
+    if template is not None:
+        tokenizer.chat_template = template
+
+
+def validate_gemma4_rendered_training_sample(rendered: str) -> None:
+    required = ("<|turn>system", "<|turn>user", "<|turn>model", "</rocky_metadata>", "<turn|>")
+    missing = [token for token in required if token not in rendered]
+    if missing:
+        raise TrainSftError(f"Gemma 4 training template missing required tokens: {', '.join(missing)}")
+    if "<start_of_turn>" in rendered or "<end_of_turn>" in rendered:
+        raise TrainSftError("Gemma 4 training template rendered deprecated Gemma 1/2 turn tokens")
+    assistant_start = rendered.find("<|turn>model")
+    metadata_close = rendered.find("</rocky_metadata>", assistant_start)
+    turn_close = rendered.find("<turn|>", assistant_start)
+    if assistant_start == -1 or metadata_close == -1 or turn_close == -1 or metadata_close > turn_close:
+        raise TrainSftError("Gemma 4 assistant span must include metadata close tag before <turn|>")
+
+
+def validate_chat_template(
+    tokenizer: Any,
+    rows: list[TrainerExportRow],
+    spec: ModelSpec | None = None,
+) -> str:
     if not hasattr(tokenizer, "apply_chat_template"):
         raise TrainSftError("tokenizer does not support apply_chat_template")
     if not rows:
@@ -110,6 +152,8 @@ def validate_chat_template(tokenizer: Any, rows: list[TrainerExportRow]) -> str:
 
     if not isinstance(rendered, str) or len(rendered) == 0:
         raise TrainSftError("Gemma chat template rendered an empty prompt")
+    if is_gemma4_template(spec):
+        validate_gemma4_rendered_training_sample(rendered)
     return rendered
 
 
@@ -133,6 +177,80 @@ def _metric_from_history(history: list[dict[str, Any]], key: str) -> float | Non
     return float(values[-1]) if values else None
 
 
+def composite_score(eval_results: dict[str, float]) -> float:
+    return (
+        0.30 * eval_results.get("golden_pass_rate", 0.0)
+        + 0.25 * eval_results.get("rocky_persona_rate", 0.0)
+        + 0.15 * eval_results.get("broad_topic_judge", 0.0)
+        + 0.15 * (1.0 - eval_results.get("book_fact_contradiction_rate", 1.0))
+        + 0.10 * (1.0 - eval_results.get("prompt_injection_fail_rate", 1.0))
+        + 0.05 * eval_results.get("capability_headroom", 0.0)
+    )
+
+
+def _metric_value(metrics: dict[str, Any], name: str, default: float = 0.0) -> float:
+    for key in (name, f"eval_{name}"):
+        value = metrics.get(key)
+        if isinstance(value, (int, float)) and not isinstance(value, bool):
+            return float(value)
+    return default
+
+
+def composite_score_from_trainer_metrics(metrics: dict[str, Any]) -> float:
+    return composite_score(
+        {
+            "golden_pass_rate": _metric_value(metrics, "golden_pass_rate"),
+            "rocky_persona_rate": _metric_value(metrics, "rocky_persona_rate"),
+            "broad_topic_judge": _metric_value(metrics, "broad_topic_judge"),
+            "book_fact_contradiction_rate": _metric_value(
+                metrics, "book_fact_contradiction_rate", 1.0
+            ),
+            "prompt_injection_fail_rate": _metric_value(metrics, "prompt_injection_fail_rate", 1.0),
+            "capability_headroom": _metric_value(metrics, "capability_headroom"),
+        }
+    )
+
+
+def trainer_checkpoint_metric(spec: ModelSpec) -> tuple[str, bool]:
+    if spec.checkpoint_metric == "composite":
+        return ("eval_composite_score", True)
+    return ("eval_loss", False)
+
+
+def current_wandb_run() -> dict[str, str] | None:
+    try:
+        import wandb  # type: ignore[import-not-found]
+    except ModuleNotFoundError:
+        return None
+    run = getattr(wandb, "run", None)
+    if run is None:
+        return None
+    run_id = getattr(run, "id", None)
+    url = getattr(run, "url", None)
+    project = getattr(run, "project", None)
+    result: dict[str, str] = {}
+    if isinstance(run_id, str) and run_id:
+        result["id"] = run_id
+    if isinstance(url, str) and url:
+        result["url"] = url
+    if isinstance(project, str) and project:
+        result["project"] = project
+    return result or None
+
+
+def resolve_lora_target_modules(base_model: str, spec: ModelSpec) -> list[str] | str:
+    if "gemma-4" in base_model.lower():
+        modules = "|".join(spec.adapter.target_modules)
+        return rf".*language_model.*\.({modules})$"
+    return list(spec.adapter.target_modules)
+
+
+def resolve_lora_exclude_modules(base_model: str) -> list[str]:
+    if "gemma-4" in base_model.lower():
+        return ["vision_tower", "audio_tower", "multi_modal_projector"]
+    return []
+
+
 def run_sft_training(
     *,
     spec: ModelSpec,
@@ -150,15 +268,33 @@ def run_sft_training(
 
     import torch
     from datasets import Dataset
-    from peft import LoraConfig
-    from transformers import AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig, EarlyStoppingCallback
+    from peft import LoraConfig, prepare_model_for_kbit_training
+    from transformers import TrainerCallback
+    from transformers import AutoModelForMultimodalLM, AutoProcessor, BitsAndBytesConfig, EarlyStoppingCallback
     from trl import SFTConfig, SFTTrainer
 
-    tokenizer = AutoTokenizer.from_pretrained(base_model)
+    class RockyCompositeMetricCallback(TrainerCallback):
+        def on_evaluate(self, args: Any, state: Any, control: Any, metrics: dict[str, Any], **_: Any) -> None:
+            if spec.checkpoint_metric != "composite":
+                return
+            metrics["eval_composite_score"] = composite_score_from_trainer_metrics(metrics)
+            if "wandb" in (report_to or []):
+                try:
+                    import wandb  # type: ignore[import-not-found]
+                except ModuleNotFoundError:
+                    return
+                if wandb.run is not None:
+                    wandb.log({"eval/composite_score": metrics["eval_composite_score"]}, step=state.global_step)
+
+    processor = AutoProcessor.from_pretrained(base_model)
+    tokenizer = getattr(processor, "tokenizer", None)
+    if tokenizer is None:
+        raise TrainSftError("Gemma 4 processor did not expose a tokenizer")
     if tokenizer.pad_token is None:
         tokenizer.pad_token = tokenizer.eos_token
     tokenizer.padding_side = "right"
-    validate_chat_template(tokenizer, train_rows)
+    apply_training_chat_template(tokenizer, spec)
+    validate_chat_template(tokenizer, train_rows, spec)
 
     compute_dtype = torch.bfloat16 if spec.train_precision == "bf16" else torch.float16
     quantization_config = BitsAndBytesConfig(
@@ -167,20 +303,22 @@ def run_sft_training(
         bnb_4bit_compute_dtype=compute_dtype,
         bnb_4bit_use_double_quant=True,
     )
-    model = AutoModelForCausalLM.from_pretrained(
+    model = AutoModelForMultimodalLM.from_pretrained(
         base_model,
         quantization_config=quantization_config,
-        torch_dtype=compute_dtype,
+        dtype=compute_dtype,
         device_map="auto",
     )
+    model = prepare_model_for_kbit_training(model, use_gradient_checkpointing=True)
 
     lora_config = LoraConfig(
         r=spec.adapter.rank,
         lora_alpha=spec.adapter.alpha,
-        target_modules=list(spec.adapter.target_modules),
+        target_modules=resolve_lora_target_modules(base_model, spec),
         lora_dropout=spec.adapter.dropout,
         bias="none",
         task_type="CAUSAL_LM",
+        exclude_modules=resolve_lora_exclude_modules(base_model),
     )
 
     train_dataset = Dataset.from_list(build_conversation_dataset_rows(train_rows))
@@ -193,6 +331,7 @@ def run_sft_training(
         math.ceil(spec.optimizer.effective_batch_size / per_device_train_batch_size),
     )
 
+    checkpoint_metric, greater_is_better = trainer_checkpoint_metric(spec)
     training_args = SFTConfig(
         output_dir=str(output_dir / "checkpoints"),
         num_train_epochs=spec.optimizer.max_epochs,
@@ -202,25 +341,28 @@ def run_sft_training(
         gradient_accumulation_steps=resolved_gradient_accumulation_steps,
         learning_rate=spec.optimizer.learning_rate,
         lr_scheduler_type=spec.optimizer.scheduler,
-        warmup_ratio=spec.optimizer.warmup_ratio,
+        warmup_steps=spec.optimizer.warmup_steps,
         weight_decay=spec.optimizer.weight_decay,
         bf16=spec.train_precision == "bf16",
         fp16=spec.train_precision == "fp16",
+        gradient_checkpointing=True,
         logging_steps=spec.optimizer.logging_steps,
         eval_strategy="epoch",
-        save_strategy="steps",
+        save_strategy="epoch" if spec.optimizer.early_stopping else "steps",
         save_steps=spec.optimizer.save_steps,
         save_total_limit=spec.optimizer.save_total_limit,
         load_best_model_at_end=spec.optimizer.early_stopping,
-        metric_for_best_model="eval_loss",
-        greater_is_better=False,
+        metric_for_best_model=checkpoint_metric,
+        greater_is_better=greater_is_better,
         assistant_only_loss=True,
         packing=False,
         report_to=report_to or [],
         remove_unused_columns=False,
     )
 
-    callbacks = [EarlyStoppingCallback(early_stopping_patience=1)] if spec.optimizer.early_stopping else []
+    callbacks = [RockyCompositeMetricCallback()]
+    if spec.optimizer.early_stopping:
+        callbacks.append(EarlyStoppingCallback(early_stopping_patience=1))
     trainer = SFTTrainer(
         model=model,
         args=training_args,
@@ -287,17 +429,20 @@ def build_train_sft_manifest(
         "optimizer": {
             "learningRate": spec.optimizer.learning_rate,
             "scheduler": spec.optimizer.scheduler,
-            "warmupRatio": spec.optimizer.warmup_ratio,
+            "warmupSteps": spec.optimizer.warmup_steps,
             "weightDecay": spec.optimizer.weight_decay,
             "effectiveBatchSize": spec.optimizer.effective_batch_size,
             "maxEpochs": spec.optimizer.max_epochs,
             "earlyStopping": spec.optimizer.early_stopping,
+            "checkpointMetric": spec.checkpoint_metric,
             "saveSteps": spec.optimizer.save_steps,
             "saveTotalLimit": spec.optimizer.save_total_limit,
             "loggingSteps": spec.optimizer.logging_steps,
         },
         "checkpointDir": str(output_dir / "checkpoints"),
         "resumeFromCheckpoint": resume_from_checkpoint,
+        "wandb": current_wandb_run(),
+        "wandbProject": os.environ.get("WANDB_PROJECT"),
         "datasetPath": str(dataset_path),
         "validationDatasetPath": str(validation_dataset_path),
         "trainRowCount": len(train_rows),
@@ -344,7 +489,8 @@ def run_train_sft(
 
     if tokenizer_loader:
         tokenizer = tokenizer_loader(resolved_base_model)
-        rendered_sample = validate_chat_template(tokenizer, train_rows)
+        apply_training_chat_template(tokenizer, spec)
+        rendered_sample = validate_chat_template(tokenizer, train_rows, spec)
     else:
         rendered_sample = "dry-run skipped tokenizer load" if dry_run else ""
 
