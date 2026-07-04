@@ -49,13 +49,13 @@ def merge_adapter_into_base(
     _require_merge_dependencies()
     import torch
     from peft import PeftModel
-    from transformers import AutoModelForCausalLM, AutoTokenizer
+    from transformers import AutoModelForMultimodalLM, AutoProcessor
 
     dtype = torch.bfloat16 if spec.train_precision == "bf16" else torch.float16
-    tokenizer = AutoTokenizer.from_pretrained(base_model)
-    model = AutoModelForCausalLM.from_pretrained(
+    processor = AutoProcessor.from_pretrained(base_model)
+    model = AutoModelForMultimodalLM.from_pretrained(
         base_model,
-        torch_dtype=dtype,
+        dtype=dtype,
         device_map="auto",
     )
     model = PeftModel.from_pretrained(model, str(adapter_dir))
@@ -63,7 +63,7 @@ def merge_adapter_into_base(
 
     output_dir.mkdir(parents=True, exist_ok=True)
     merged.save_pretrained(output_dir)
-    tokenizer.save_pretrained(output_dir)
+    processor.save_pretrained(output_dir)
 
     return MergeAdapterResult(
         base_model=base_model,

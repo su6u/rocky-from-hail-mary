@@ -7,7 +7,12 @@ from pathlib import Path
 from typing import Any
 
 from rocky_training.model_spec import ModelSpec, load_model_spec
-from rocky_training.train_sft import TrainSftError, resolve_train_base_model
+from rocky_training.train_sft import (
+    TrainSftError,
+    resolve_lora_exclude_modules,
+    resolve_lora_target_modules,
+    resolve_train_base_model,
+)
 from rocky_training.trainer_jsonl import write_json
 
 
@@ -102,10 +107,13 @@ def run_dpo_training(
     import torch
     from datasets import Dataset
     from peft import LoraConfig
-    from transformers import AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig
+    from transformers import AutoModelForMultimodalLM, AutoProcessor, BitsAndBytesConfig
     from trl import DPOConfig, DPOTrainer
 
-    tokenizer = AutoTokenizer.from_pretrained(base_model)
+    processor = AutoProcessor.from_pretrained(base_model)
+    tokenizer = getattr(processor, "tokenizer", None)
+    if tokenizer is None:
+        raise TrainDpoError("Gemma 4 processor did not expose a tokenizer")
     if tokenizer.pad_token is None:
         tokenizer.pad_token = tokenizer.eos_token
     tokenizer.padding_side = "right"
@@ -117,19 +125,20 @@ def run_dpo_training(
         bnb_4bit_compute_dtype=compute_dtype,
         bnb_4bit_use_double_quant=True,
     )
-    model = AutoModelForCausalLM.from_pretrained(
+    model = AutoModelForMultimodalLM.from_pretrained(
         base_model,
         quantization_config=quantization_config,
-        torch_dtype=compute_dtype,
+        dtype=compute_dtype,
         device_map="auto",
     )
     peft_config = LoraConfig(
         r=spec.adapter.rank,
         lora_alpha=spec.adapter.alpha,
-        target_modules=list(spec.adapter.target_modules),
+        target_modules=resolve_lora_target_modules(base_model, spec),
         lora_dropout=spec.adapter.dropout,
         bias="none",
         task_type="CAUSAL_LM",
+        exclude_modules=resolve_lora_exclude_modules(base_model),
     )
 
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -175,7 +184,7 @@ def run_train_dpo(
     base_model: str | None = None,
     max_rows: int = 0,
     beta: float = 0.1,
-    learning_rate: float = 5e-7,
+    learning_rate: float = 1e-5,
     dry_run: bool = False,
 ) -> dict[str, Any]:
     spec = load_model_spec(spec_path)
