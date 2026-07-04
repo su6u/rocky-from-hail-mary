@@ -44,7 +44,12 @@ def call_ollama_chat(
     stop: list[str] | None = None,
 ) -> str:
     url = f"{host.rstrip('/')}/api/chat"
-    payload: dict[str, Any] = {"model": model, "messages": messages, "stream": False}
+    payload: dict[str, Any] = {
+        "model": model,
+        "messages": messages,
+        "stream": False,
+        "think": False,
+    }
     if stop:
         payload["options"] = {"stop": stop}
     parsed = _post_json(url, payload)

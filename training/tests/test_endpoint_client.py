@@ -15,3 +15,4 @@ def test_call_ollama_chat_passes_stop_tokens() -> None:
 
     payload = post_json.call_args.args[1]
     assert payload["options"]["stop"] == ["</rocky_metadata>"]
+    assert payload["think"] is False
