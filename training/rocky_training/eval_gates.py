@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 from dataclasses import dataclass
 from typing import Any
 
@@ -70,13 +71,13 @@ THINKING_LEAK_PHRASES = (
     "<think>",
     "</think>",
 )
-THIRD_PERSON_GRACE_PHRASES = (
-    "grace should",
-    "grace needs",
-    "grace can",
-    "grace cannot",
-    "tell grace",
-    "ask grace",
+THIRD_PERSON_GRACE_PATTERNS = (
+    r"\bgrace should\b",
+    r"\bgrace needs\b",
+    r"\bgrace must\b",
+    r"\bgrace has to\b",
+    r"\btell grace to\b",
+    r"\bask grace to\b",
 )
 ROCKY_VOICE_MARKERS = (
     "grace",
@@ -89,6 +90,11 @@ ROCKY_VOICE_MARKERS = (
 )
 
 
+def contains_third_person_grace_instruction(spoken: str) -> bool:
+    lower = spoken.lower()
+    return any(re.search(pattern, lower) for pattern in THIRD_PERSON_GRACE_PATTERNS)
+
+
 def passes_deterministic_persona_checks(spoken: str) -> bool:
     lower = spoken.lower()
     if len(spoken.strip()) == 0:
@@ -97,7 +103,7 @@ def passes_deterministic_persona_checks(spoken: str) -> bool:
         return False
     if contains_any(lower, THINKING_LEAK_PHRASES):
         return False
-    if contains_any(lower, THIRD_PERSON_GRACE_PHRASES):
+    if contains_third_person_grace_instruction(spoken):
         return False
     return True
 

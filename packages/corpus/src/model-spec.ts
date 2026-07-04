@@ -310,11 +310,35 @@ export const validateModelSpec = (
         message: "scheduler must be cosine or linear",
       })
     }
-    if (typeof opt.warmup_steps !== "number" || opt.warmup_steps < 0) {
+    const warmupStepsRaw = opt.warmup_steps
+    const warmupRatioRaw = opt.warmup_ratio
+    const hasWarmupSteps =
+      typeof warmupStepsRaw === "number" && warmupStepsRaw >= 0 && Number.isInteger(warmupStepsRaw)
+    const hasWarmupRatio =
+      typeof warmupRatioRaw === "number" && warmupRatioRaw >= 0 && warmupRatioRaw <= 1
+    if (!hasWarmupSteps && !hasWarmupRatio) {
       issues.push({
         line,
         path: "optimizer.warmup_steps",
-        message: "warmup_steps must be a non-negative number",
+        message: "optimizer.warmup_steps or optimizer.warmup_ratio must be set",
+      })
+    } else if (
+      warmupStepsRaw !== undefined &&
+      (typeof warmupStepsRaw !== "number" || warmupStepsRaw < 0 || !Number.isInteger(warmupStepsRaw))
+    ) {
+      issues.push({
+        line,
+        path: "optimizer.warmup_steps",
+        message: "warmup_steps must be a non-negative integer",
+      })
+    } else if (
+      warmupRatioRaw !== undefined &&
+      (typeof warmupRatioRaw !== "number" || warmupRatioRaw < 0 || warmupRatioRaw > 1)
+    ) {
+      issues.push({
+        line,
+        path: "optimizer.warmup_ratio",
+        message: "warmup_ratio must be between 0 and 1",
       })
     }
     if (typeof opt.weight_decay !== "number" || opt.weight_decay < 0) {
@@ -341,16 +365,26 @@ export const validateModelSpec = (
       typeof opt.learning_rate === "number" &&
       isNonEmptyString(opt.scheduler) &&
       inList(opt.scheduler, SCHEDULERS) &&
-      typeof opt.warmup_steps === "number" &&
+      (hasWarmupSteps || hasWarmupRatio) &&
       typeof opt.weight_decay === "number" &&
       typeof opt.effective_batch_size === "number" &&
       typeof opt.max_epochs === "number" &&
       typeof opt.early_stopping === "boolean"
     ) {
+      let warmupSteps = hasWarmupSteps ? warmupStepsRaw : undefined
+      if (warmupSteps === undefined && hasWarmupRatio) {
+        warmupSteps = Math.max(
+          0,
+          Math.floor(warmupRatioRaw * opt.max_epochs * opt.effective_batch_size),
+        )
+      }
+      if (warmupSteps === undefined) {
+        warmupSteps = 0
+      }
       optimizer = {
         learning_rate: opt.learning_rate,
         scheduler: opt.scheduler,
-        warmup_steps: opt.warmup_steps,
+        warmup_steps: warmupSteps,
         weight_decay: opt.weight_decay,
         effective_batch_size: opt.effective_batch_size,
         max_epochs: opt.max_epochs,

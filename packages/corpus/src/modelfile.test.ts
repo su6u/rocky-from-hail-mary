@@ -41,4 +41,15 @@ describe("generateModelfile", () => {
     )
     assert.throws(() => assertCanonicalSystemPrompt("wrong prompt"), ModelfileError)
   })
+
+  it("uses gemma renderer for gemma chat template", () => {
+    const spec = loadModelSpec()
+    const output = generateModelfile({
+      spec: { ...spec, chat_template: "gemma" },
+    })
+
+    assert.ok(output.includes("renderer gemma"))
+    assert.ok(output.includes("parser gemma"))
+    assert.ok(!output.includes("renderer gemma4"))
+  })
 })

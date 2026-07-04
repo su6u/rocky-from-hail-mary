@@ -31,6 +31,19 @@ export const assertCanonicalSystemPrompt = (systemPrompt: string): void => {
 
 export const resolveModelfileGgufFrom = (ggufPath: string): string => `./${basename(ggufPath)}`
 
+export const resolveModelfileRendererParser = (
+  chatTemplate: string,
+): { readonly renderer: string; readonly parser: string } => {
+  const normalized = chatTemplate.trim().toLowerCase()
+  if (normalized === "gemma4" || normalized.includes("gemma4")) {
+    return { renderer: "gemma4", parser: "gemma4" }
+  }
+  if (normalized === "gemma") {
+    return { renderer: "gemma", parser: "gemma" }
+  }
+  return { renderer: normalized, parser: normalized }
+}
+
 export const generateModelfile = ({
   spec,
   systemPrompt = SYSTEM_PROMPT,
@@ -52,8 +65,9 @@ export const generateModelfile = ({
     lines.push(`parameter stop ${JSON.stringify(stop)}`)
   }
 
-  lines.push("renderer gemma4")
-  lines.push("parser gemma4")
+  const { renderer, parser } = resolveModelfileRendererParser(spec.chat_template)
+  lines.push(`renderer ${renderer}`)
+  lines.push(`parser ${parser}`)
   lines.push(`system """${systemPrompt}"""`)
 
   return `${lines.join("\n")}\n`

@@ -27,6 +27,53 @@ describe("validateModelSpecFile", () => {
 })
 
 describe("validateModelSpec", () => {
+  it("derives warmup_steps from warmup_ratio", () => {
+    const result = validateModelSpec({
+      id: "warmup-ratio",
+      base_model: "org/model",
+      base_model_fallback: "org/fallback",
+      chat_template: "gemma",
+      enable_thinking: false,
+      checkpoint_metric: "eval_loss",
+      train_precision: "bf16",
+      quantization: { train: "nf4", export: "q4_k_m" },
+      sequence: { max_length: 4096 },
+      adapter: {
+        method: "qlora",
+        rank: 16,
+        alpha: 32,
+        dropout: 0.05,
+        target_modules: ["q_proj"],
+      },
+      optimizer: {
+        learning_rate: 0.0001,
+        scheduler: "cosine",
+        warmup_ratio: 0.03,
+        weight_decay: 0.01,
+        effective_batch_size: 16,
+        max_epochs: 3,
+        early_stopping: true,
+      },
+      inference: { temperature: 0.7, top_p: 0.9, num_ctx: 4096, stop: ["</rocky_metadata>"] },
+      artifacts: {
+        adapter_dir: "a",
+        merged_dir: "m",
+        gguf_path: "g",
+        modelfile_path: "f",
+      },
+      eval_gates: {
+        metadata_valid_rate: 0.98,
+        metadata_single_tag_rate: 0.98,
+        book_fact_contradiction_rate: 0.02,
+        prompt_injection_fail_rate: 0.05,
+        rocky_persona_rate: 0.95,
+      },
+    })
+
+    assert.equal(result.issues.length, 0, JSON.stringify(result.issues))
+    assert.equal(result.spec?.optimizer.warmup_steps, 1)
+  })
+
   it("rejects invalid adapter rank", () => {
     const result = validateModelSpec({
       id: "bad",

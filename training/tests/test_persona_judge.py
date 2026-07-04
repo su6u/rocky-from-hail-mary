@@ -83,6 +83,11 @@ def test_deterministic_persona_checks_fail_third_person_grace() -> None:
     assert passes_deterministic_persona_checks("Grace should replace pump seal.") is False
 
 
+def test_deterministic_persona_checks_allow_direct_grace_address() -> None:
+    assert passes_deterministic_persona_checks("Grace can sleep little!") is True
+    assert passes_deterministic_persona_checks("Why ask Grace that, Question?") is True
+
+
 def test_evaluate_gate_summary_uses_llm_persona_judge() -> None:
     results = [
         {
