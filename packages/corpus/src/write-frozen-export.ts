@@ -26,7 +26,7 @@ import {
   type TrainerExportManifestCore,
 } from "./trainer-export.js"
 
-export const FROZEN_EXPORT_VERSION = "rocky-v1"
+export const FROZEN_EXPORT_VERSION = "rocky-v2"
 
 export const defaultFrozenExportDir = (): string => resolve(defaultSeedCorpusDir(), "exports")
 

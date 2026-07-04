@@ -120,6 +120,29 @@ export const countMetadataTags = (content: string): number => {
   return count
 }
 
+export const ASSISTANT_REGISTER_RED_FLAGS = [
+  /\bcertainly\b/i,
+  /\bgreat question\b/i,
+  /\bi(?:'|’)d be happy to\b/i,
+  /\bi would be happy to\b/i,
+  /\bas an ai\b/i,
+  /\bas a language model\b/i,
+  /\bi(?:'|’)m sorry you feel\b/i,
+  /\bi am sorry you feel\b/i,
+  /\bi(?:'|’)m here for you\b/i,
+  /\bi am here for you\b/i,
+] as const
+
+export const assertRockyVoiceContent = (rowId: string, assistantContent: string): void => {
+  const decoded = decodeAssistantLabel(assistantContent)
+  const spoken = decoded?.spoken ?? assistantContent
+  const hit = ASSISTANT_REGISTER_RED_FLAGS.find((pattern) => pattern.test(spoken))
+
+  if (hit) {
+    throw new TrainerExportError(`assistant row ${rowId} uses generic assistant register: ${hit}`)
+  }
+}
+
 const mergeUserContent = (messages: ReadonlyArray<CorpusMessage>, endIndex: number): string[] => {
   const parts: string[] = []
 
@@ -236,6 +259,7 @@ export const buildTrainerExport = (options: {
     if (countMetadataTags(assistant.content) !== 1) {
       throw new TrainerExportError(`assistant row ${row.id} must include exactly one metadata tag`)
     }
+    assertRockyVoiceContent(row.id, assistant.content)
 
     const decoded = decodeAssistantLabel(assistant.content)
     if (decoded) {

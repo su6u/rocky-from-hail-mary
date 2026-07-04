@@ -19,6 +19,7 @@ import {
   extractMetadataTag,
   formatAssistantTrainerContent,
   promptHash,
+  TrainerExportError,
 } from "./trainer-export.js"
 
 describe("formatAssistantTrainerContent", () => {
@@ -113,6 +114,32 @@ describe("buildTrainerExport", () => {
         splitRegistry: registry,
         exportedAt: "2026-01-01T00:00:00.000Z",
       }),
+    )
+  })
+
+  it("rejects generic assistant register in exported assistant rows", () => {
+    assert.throws(
+      () =>
+        buildTrainerExport({
+          trainingRows: [
+            {
+              id: "assistant-poison",
+              source: "hand-authored",
+              scenarioFamily: "general_world_questions",
+              messages: [
+                { role: "user", content: "Explain pump." },
+                {
+                  role: "assistant",
+                  content: "Certainly, I would be happy to explain pump.",
+                  metadata: { emotion: "neutral", intensity: 0.5, gesture: "none" },
+                },
+              ],
+            },
+          ],
+          goldenEvalIds: [],
+          exportedAt: "2026-01-01T00:00:00.000Z",
+        }),
+      TrainerExportError,
     )
   })
 
