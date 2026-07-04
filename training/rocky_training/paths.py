@@ -23,6 +23,10 @@ def default_persona_eval_path() -> Path:
     return repo_root() / "research" / "seed-corpus" / "evaluation-persona-holdout.jsonl"
 
 
+def default_preference_dataset_path() -> Path:
+    return repo_root() / "research" / "seed-corpus" / "preferences" / "rocky-v2.persona-dpo.jsonl"
+
+
 def default_system_prompt_path() -> Path:
     return training_root() / "prompts" / "rocky-system.txt"
 

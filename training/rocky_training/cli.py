@@ -12,6 +12,7 @@ from rocky_training.model_spec import validate_model_spec_file
 from rocky_training.paths import (
     default_persona_eval_path,
     default_persona_judge_model,
+    default_preference_dataset_path,
     default_spec_path,
     default_system_prompt_path,
 )
@@ -118,6 +119,7 @@ def _cmd_train_sft(args: argparse.Namespace) -> int:
 
 
 def _cmd_train_dpo(args: argparse.Namespace) -> int:
+    report_to = [] if args.report_to == "none" else [args.report_to]
     manifest = run_train_dpo(
         spec_path=Path(args.spec),
         dataset_path=Path(args.dataset),
@@ -126,6 +128,9 @@ def _cmd_train_dpo(args: argparse.Namespace) -> int:
         max_rows=args.max_rows,
         beta=args.beta,
         learning_rate=args.learning_rate,
+        sft_adapter_dir=Path(args.sft_adapter_dir) if args.sft_adapter_dir else None,
+        report_to=report_to,
+        system_prompt_path=Path(args.system_prompt) if args.system_prompt else None,
         dry_run=args.dry_run,
     )
     print(json.dumps({"outputDir": args.output_dir, "manifest": manifest}, indent=2))
@@ -248,12 +253,15 @@ def build_parser() -> argparse.ArgumentParser:
     train_dpo = subparsers.add_parser("train-dpo", help="run dpo training")
     _add_gpu_note(train_dpo)
     train_dpo.add_argument("--spec", type=str, default=str(default_spec_path()))
-    train_dpo.add_argument("--dataset", type=str, required=True)
+    train_dpo.add_argument("--dataset", type=str, default=str(default_preference_dataset_path()))
     train_dpo.add_argument("--output-dir", type=str, required=True)
     train_dpo.add_argument("--base-model", type=str, default=None)
+    train_dpo.add_argument("--sft-adapter-dir", type=str, default=None)
+    train_dpo.add_argument("--system-prompt", type=str, default=str(default_system_prompt_path()))
     train_dpo.add_argument("--max-rows", type=int, default=0)
     train_dpo.add_argument("--beta", type=float, default=0.1)
-    train_dpo.add_argument("--learning-rate", type=float, default=5e-7)
+    train_dpo.add_argument("--learning-rate", type=float, default=1e-5)
+    train_dpo.add_argument("--report-to", type=str, default="none")
     train_dpo.add_argument("--dry-run", action="store_true")
     train_dpo.set_defaults(handler=_cmd_train_dpo)
 
