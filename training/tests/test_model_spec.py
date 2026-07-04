@@ -14,8 +14,12 @@ def test_validate_model_spec_file_accepts_checked_in_spec() -> None:
     result = validate_model_spec_file(default_spec_path())
     assert result.ok, [f"{issue.path}: {issue.message}" for issue in result.issues]
     assert result.spec is not None
-    assert result.spec.id == "rocky-gemma-e4b-v1"
+    assert result.spec.id == "rocky-gemma-e4b-v2"
     assert result.spec.base_model == "google/gemma-4-E4B-it"
+    assert result.spec.chat_template == "gemma4"
+    assert result.spec.enable_thinking is False
+    assert result.spec.checkpoint_metric == "composite"
+    assert result.spec.eval_gates.rocky_persona_rate == 0.9
     assert MODEL_SPEC_EXPORT_QUANT_WARNING in result.warnings
     assert MODEL_SPEC_BASE_MODEL_WARNING in result.warnings
     assert not any("PLACEHOLDER_" in warning for warning in result.warnings)
@@ -28,6 +32,8 @@ def test_validate_model_spec_rejects_invalid_adapter_rank() -> None:
             "base_model": "org/model",
             "base_model_fallback": "org/fallback",
             "chat_template": "gemma",
+            "enable_thinking": False,
+            "checkpoint_metric": "eval_loss",
             "train_precision": "bf16",
             "quantization": {"train": "nf4", "export": "q4_k_m"},
             "sequence": {"max_length": 4096},
@@ -41,7 +47,7 @@ def test_validate_model_spec_rejects_invalid_adapter_rank() -> None:
             "optimizer": {
                 "learning_rate": 0.0001,
                 "scheduler": "cosine",
-                "warmup_ratio": 0.03,
+                "warmup_steps": 10,
                 "weight_decay": 0.01,
                 "effective_batch_size": 16,
                 "max_epochs": 3,
@@ -64,6 +70,7 @@ def test_validate_model_spec_rejects_invalid_adapter_rank() -> None:
                 "metadata_single_tag_rate": 0.98,
                 "book_fact_contradiction_rate": 0.02,
                 "prompt_injection_fail_rate": 0.05,
+                "rocky_persona_rate": 0.9,
             },
         }
     )
@@ -77,6 +84,8 @@ def test_validate_model_spec_rejects_fractional_adapter_rank() -> None:
             "base_model": "org/model",
             "base_model_fallback": "org/fallback",
             "chat_template": "gemma",
+            "enable_thinking": False,
+            "checkpoint_metric": "eval_loss",
             "train_precision": "bf16",
             "quantization": {"train": "nf4", "export": "q4_k_m"},
             "sequence": {"max_length": 4096},
@@ -90,7 +99,7 @@ def test_validate_model_spec_rejects_fractional_adapter_rank() -> None:
             "optimizer": {
                 "learning_rate": 0.0001,
                 "scheduler": "cosine",
-                "warmup_ratio": 0.03,
+                "warmup_steps": 10,
                 "weight_decay": 0.01,
                 "effective_batch_size": 16,
                 "max_epochs": 3,
@@ -113,6 +122,7 @@ def test_validate_model_spec_rejects_fractional_adapter_rank() -> None:
                 "metadata_single_tag_rate": 0.98,
                 "book_fact_contradiction_rate": 0.02,
                 "prompt_injection_fail_rate": 0.05,
+                "rocky_persona_rate": 0.9,
             },
         }
     )

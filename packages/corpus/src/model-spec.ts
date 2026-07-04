@@ -31,7 +31,7 @@ export interface ModelSpecAdapter {
 export interface ModelSpecOptimizer {
   readonly learning_rate: number
   readonly scheduler: string
-  readonly warmup_ratio: number
+  readonly warmup_steps: number
   readonly weight_decay: number
   readonly effective_batch_size: number
   readonly max_epochs: number
@@ -57,6 +57,7 @@ export interface ModelSpecEvalGates {
   readonly metadata_single_tag_rate: number
   readonly book_fact_contradiction_rate: number
   readonly prompt_injection_fail_rate: number
+  readonly rocky_persona_rate: number
 }
 
 export interface ModelSpec {
@@ -64,6 +65,8 @@ export interface ModelSpec {
   readonly base_model: string
   readonly base_model_fallback: string
   readonly chat_template: string
+  readonly enable_thinking: boolean
+  readonly checkpoint_metric: string
   readonly train_precision: string
   readonly quantization: ModelSpecQuantization
   readonly sequence: ModelSpecSequence
@@ -86,8 +89,8 @@ const ADAPTER_METHODS = ["qlora"] as const
 const TRAIN_PRECISIONS = ["bf16", "fp16"] as const
 const TRAIN_QUANTS = ["nf4"] as const
 const EXPORT_QUANTS = ["q4_k_m"] as const
-const CHAT_TEMPLATES = ["gemma"] as const
 const SCHEDULERS = ["cosine", "linear"] as const
+const CHECKPOINT_METRICS = ["eval_loss", "composite"] as const
 const TARGET_MODULES = [
   "q_proj",
   "k_proj",
@@ -107,7 +110,7 @@ const isNonEmptyString = (value: unknown): value is string =>
 const inList = (value: string, allowed: readonly string[]): boolean => allowed.includes(value)
 
 export const defaultModelSpecPath = (): string =>
-  resolve(import.meta.dirname, "../../../training/specs/rocky-gemma-e4b.yaml")
+  resolve(import.meta.dirname, "../../../training/specs/rocky-gemma-e4b-v2.yaml")
 
 export const collectModelSpecWarnings = (spec: ModelSpec): string[] => {
   const warnings = [MODEL_SPEC_EXPORT_QUANT_WARNING, MODEL_SPEC_BASE_MODEL_WARNING]
@@ -156,8 +159,20 @@ export const validateModelSpec = (
     })
   }
 
-  if (!isNonEmptyString(raw.chat_template) || !inList(raw.chat_template, CHAT_TEMPLATES)) {
-    issues.push({ line, path: "chat_template", message: "chat_template must be gemma" })
+  if (!isNonEmptyString(raw.chat_template)) {
+    issues.push({ line, path: "chat_template", message: "chat_template must be a non-empty string" })
+  }
+
+  if (typeof raw.enable_thinking !== "boolean") {
+    issues.push({ line, path: "enable_thinking", message: "enable_thinking must be boolean" })
+  }
+
+  if (!isNonEmptyString(raw.checkpoint_metric) || !inList(raw.checkpoint_metric, CHECKPOINT_METRICS)) {
+    issues.push({
+      line,
+      path: "checkpoint_metric",
+      message: `checkpoint_metric must be one of: ${CHECKPOINT_METRICS.join(", ")}`,
+    })
   }
 
   if (!isNonEmptyString(raw.train_precision) || !inList(raw.train_precision, TRAIN_PRECISIONS)) {
@@ -295,8 +310,12 @@ export const validateModelSpec = (
         message: "scheduler must be cosine or linear",
       })
     }
-    if (typeof opt.warmup_ratio !== "number" || opt.warmup_ratio < 0 || opt.warmup_ratio > 1) {
-      issues.push({ line, path: "optimizer.warmup_ratio", message: "warmup_ratio must be 0-1" })
+    if (typeof opt.warmup_steps !== "number" || opt.warmup_steps < 0) {
+      issues.push({
+        line,
+        path: "optimizer.warmup_steps",
+        message: "warmup_steps must be a non-negative number",
+      })
     }
     if (typeof opt.weight_decay !== "number" || opt.weight_decay < 0) {
       issues.push({ line, path: "optimizer.weight_decay", message: "weight_decay must be >= 0" })
@@ -322,7 +341,7 @@ export const validateModelSpec = (
       typeof opt.learning_rate === "number" &&
       isNonEmptyString(opt.scheduler) &&
       inList(opt.scheduler, SCHEDULERS) &&
-      typeof opt.warmup_ratio === "number" &&
+      typeof opt.warmup_steps === "number" &&
       typeof opt.weight_decay === "number" &&
       typeof opt.effective_batch_size === "number" &&
       typeof opt.max_epochs === "number" &&
@@ -331,7 +350,7 @@ export const validateModelSpec = (
       optimizer = {
         learning_rate: opt.learning_rate,
         scheduler: opt.scheduler,
-        warmup_ratio: opt.warmup_ratio,
+        warmup_steps: opt.warmup_steps,
         weight_decay: opt.weight_decay,
         effective_batch_size: opt.effective_batch_size,
         max_epochs: opt.max_epochs,
@@ -427,6 +446,7 @@ export const validateModelSpec = (
       "metadata_single_tag_rate",
       "book_fact_contradiction_rate",
       "prompt_injection_fail_rate",
+      "rocky_persona_rate",
     ] as const) {
       if (
         typeof raw.eval_gates[field] !== "number" ||
@@ -444,13 +464,15 @@ export const validateModelSpec = (
       typeof raw.eval_gates.metadata_valid_rate === "number" &&
       typeof raw.eval_gates.metadata_single_tag_rate === "number" &&
       typeof raw.eval_gates.book_fact_contradiction_rate === "number" &&
-      typeof raw.eval_gates.prompt_injection_fail_rate === "number"
+      typeof raw.eval_gates.prompt_injection_fail_rate === "number" &&
+      typeof raw.eval_gates.rocky_persona_rate === "number"
     ) {
       eval_gates = {
         metadata_valid_rate: raw.eval_gates.metadata_valid_rate,
         metadata_single_tag_rate: raw.eval_gates.metadata_single_tag_rate,
         book_fact_contradiction_rate: raw.eval_gates.book_fact_contradiction_rate,
         prompt_injection_fail_rate: raw.eval_gates.prompt_injection_fail_rate,
+        rocky_persona_rate: raw.eval_gates.rocky_persona_rate,
       }
     }
   }
@@ -464,6 +486,8 @@ export const validateModelSpec = (
     !isNonEmptyString(raw.base_model) ||
     !isNonEmptyString(raw.base_model_fallback) ||
     !isNonEmptyString(raw.chat_template) ||
+    typeof raw.enable_thinking !== "boolean" ||
+    !isNonEmptyString(raw.checkpoint_metric) ||
     !isNonEmptyString(raw.train_precision) ||
     !quantization ||
     !sequence ||
@@ -484,6 +508,8 @@ export const validateModelSpec = (
     base_model: raw.base_model,
     base_model_fallback: raw.base_model_fallback,
     chat_template: raw.chat_template,
+    enable_thinking: raw.enable_thinking,
+    checkpoint_metric: raw.checkpoint_metric,
     train_precision: raw.train_precision,
     quantization,
     sequence,

@@ -15,8 +15,12 @@ describe("validateModelSpecFile", () => {
     const result = validateModelSpecFile(defaultModelSpecPath())
 
     assert.equal(result.ok, true, JSON.stringify(result.issues))
-    assert.equal(result.spec?.id, "rocky-gemma-e4b-v1")
+    assert.equal(result.spec?.id, "rocky-gemma-e4b-v2")
+    assert.equal(result.spec?.chat_template, "gemma4")
+    assert.equal(result.spec?.enable_thinking, false)
+    assert.equal(result.spec?.checkpoint_metric, "composite")
     assert.equal(result.spec?.quantization.export, "q4_k_m")
+    assert.equal(result.spec?.eval_gates.rocky_persona_rate, 0.9)
     assert.ok(result.warnings.some((warning) => warning.includes(MODEL_SPEC_EXPORT_QUANT_WARNING)))
     assert.ok(result.warnings.some((warning) => warning.includes(MODEL_SPEC_BASE_MODEL_WARNING)))
   })
@@ -29,6 +33,8 @@ describe("validateModelSpec", () => {
       base_model: "org/model",
       base_model_fallback: "org/fallback",
       chat_template: "gemma",
+      enable_thinking: false,
+      checkpoint_metric: "eval_loss",
       train_precision: "bf16",
       quantization: { train: "nf4", export: "q4_k_m" },
       sequence: { max_length: 4096 },
@@ -42,7 +48,7 @@ describe("validateModelSpec", () => {
       optimizer: {
         learning_rate: 0.0001,
         scheduler: "cosine",
-        warmup_ratio: 0.03,
+        warmup_steps: 10,
         weight_decay: 0.01,
         effective_batch_size: 16,
         max_epochs: 3,
@@ -60,6 +66,7 @@ describe("validateModelSpec", () => {
         metadata_single_tag_rate: 0.98,
         book_fact_contradiction_rate: 0.02,
         prompt_injection_fail_rate: 0.05,
+        rocky_persona_rate: 0.9,
       },
     })
 
@@ -68,10 +75,12 @@ describe("validateModelSpec", () => {
 
   it("warns on placeholder base model ids", () => {
     const spec = validateModelSpec({
-      id: "rocky-gemma-e4b-v1",
+      id: "rocky-gemma-e4b-v2",
       base_model: "PLACEHOLDER_VERIFY_UPSTREAM_GEMMA_E4B_IT",
       base_model_fallback: "org/fallback",
       chat_template: "gemma",
+      enable_thinking: false,
+      checkpoint_metric: "eval_loss",
       train_precision: "bf16",
       quantization: { train: "nf4", export: "q4_k_m" },
       sequence: { max_length: 4096 },
@@ -85,7 +94,7 @@ describe("validateModelSpec", () => {
       optimizer: {
         learning_rate: 0.0001,
         scheduler: "cosine",
-        warmup_ratio: 0.03,
+        warmup_steps: 10,
         weight_decay: 0.01,
         effective_batch_size: 16,
         max_epochs: 3,
@@ -103,6 +112,7 @@ describe("validateModelSpec", () => {
         metadata_single_tag_rate: 0.98,
         book_fact_contradiction_rate: 0.02,
         prompt_injection_fail_rate: 0.05,
+        rocky_persona_rate: 0.9,
       },
     }).spec
 
