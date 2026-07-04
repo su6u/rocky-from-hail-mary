@@ -9,7 +9,12 @@ from rocky_training.export_gguf import ExportGgufError, run_export_gguf
 from rocky_training.inspect_failures import inspect_eval_failures
 from rocky_training.merge_adapter import MergeAdapterError, run_merge_adapter
 from rocky_training.model_spec import validate_model_spec_file
-from rocky_training.paths import default_spec_path, default_system_prompt_path
+from rocky_training.paths import (
+    default_persona_eval_path,
+    default_persona_judge_model,
+    default_spec_path,
+    default_system_prompt_path,
+)
 from rocky_training.run_eval import run_eval
 from rocky_training.smoke_sft import run_smoke_sft
 from rocky_training.train_dpo import TrainDpoError, run_train_dpo
@@ -66,6 +71,11 @@ def _cmd_run_eval(args: argparse.Namespace) -> int:
         label=args.label,
         backend=args.backend,
         baseline_path=Path(args.baseline) if args.baseline else None,
+        judge_model=args.judge_model,
+        judge_host=args.judge_host,
+        judge_backend=args.judge_backend,
+        skip_persona_judge=args.skip_persona_judge,
+        require_persona_judge=args.require_persona_judge,
     )
     print(json.dumps({"output": args.output, "label": payload["label"], "count": len(payload["results"])}, indent=2))
     gate_failures = payload.get("gateSummary", {}).get("failures", [])
@@ -75,6 +85,15 @@ def _cmd_run_eval(args: argparse.Namespace) -> int:
             print(f"- {failure}", file=sys.stderr)
         return 1
     return 0
+
+
+def _cmd_run_persona_eval(args: argparse.Namespace) -> int:
+    args.golden = str(default_persona_eval_path())
+    args.enforce_gates = True
+    if args.judge_model is None:
+        args.judge_model = default_persona_judge_model()
+    args.require_persona_judge = not args.skip_persona_judge
+    return _cmd_run_eval(args)
 
 
 def _cmd_train_sft(args: argparse.Namespace) -> int:
@@ -131,7 +150,9 @@ def _cmd_export_gguf(args: argparse.Namespace) -> int:
         merged_dir=Path(args.merged_dir),
         output_path=Path(args.output_path),
         convert_script=Path(args.convert_script) if args.convert_script else None,
+        quantize_binary=Path(args.quantize_binary) if args.quantize_binary else None,
         outtype=args.outtype,
+        keep_intermediate=args.keep_intermediate,
         dry_run=args.dry_run,
     )
     print(json.dumps({"outputPath": args.output_path, "manifest": manifest}, indent=2))
@@ -150,6 +171,38 @@ def _cmd_inspect_eval_failures(args: argparse.Namespace) -> int:
 def _cmd_not_implemented(name: str) -> int:
     print(f"{name} is not implemented yet", file=sys.stderr)
     return 2
+
+
+def _add_persona_judge_args(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument(
+        "--judge-model",
+        type=str,
+        default=None,
+        help="LLM model for rocky_persona_rate judge (defaults on run-persona-eval)",
+    )
+    parser.add_argument(
+        "--judge-host",
+        type=str,
+        default=None,
+        help="host for persona judge endpoint (defaults to --host)",
+    )
+    parser.add_argument(
+        "--judge-backend",
+        type=str,
+        choices=["ollama", "llama-cpp"],
+        default=None,
+        help="backend for persona judge endpoint (defaults to --backend)",
+    )
+    parser.add_argument(
+        "--skip-persona-judge",
+        action="store_true",
+        help="skip LLM persona judge and use heuristic scoring only",
+    )
+    parser.add_argument(
+        "--require-persona-judge",
+        action="store_true",
+        help="fail gates when LLM persona judge results are missing",
+    )
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -218,7 +271,9 @@ def build_parser() -> argparse.ArgumentParser:
     export_gguf.add_argument("--merged-dir", type=str, required=True)
     export_gguf.add_argument("--output-path", type=str, required=True)
     export_gguf.add_argument("--convert-script", type=str, default=None)
+    export_gguf.add_argument("--quantize-binary", type=str, default=None)
     export_gguf.add_argument("--outtype", type=str, default=None)
+    export_gguf.add_argument("--keep-intermediate", action="store_true")
     export_gguf.add_argument("--dry-run", action="store_true")
     export_gguf.set_defaults(handler=_cmd_export_gguf)
 
@@ -234,7 +289,24 @@ def build_parser() -> argparse.ArgumentParser:
     run_eval.add_argument("--backend", type=str, choices=["ollama", "llama-cpp"], default="ollama")
     run_eval.add_argument("--baseline", type=str, default=None)
     run_eval.add_argument("--enforce-gates", action="store_true")
-    run_eval.set_defaults(handler=_cmd_run_eval)
+    _add_persona_judge_args(run_eval)
+    run_eval.set_defaults(handler=_cmd_run_eval, require_persona_judge=False)
+
+    persona_eval = subparsers.add_parser(
+        "run-persona-eval",
+        help="run 50-prompt arbitrary-topic Rocky persona gate",
+    )
+    persona_eval.add_argument("--host", type=str, default="http://localhost:11434")
+    persona_eval.add_argument("--model", type=str, required=True)
+    persona_eval.add_argument("--output", type=str, required=True)
+    persona_eval.add_argument("--spec", type=str, default=str(default_spec_path()))
+    persona_eval.add_argument("--system-prompt", type=str, default=str(default_system_prompt_path()))
+    persona_eval.add_argument("--limit", type=int, default=0)
+    persona_eval.add_argument("--label", type=str, default=None)
+    persona_eval.add_argument("--backend", type=str, choices=["ollama", "llama-cpp"], default="ollama")
+    persona_eval.add_argument("--baseline", type=str, default=None)
+    _add_persona_judge_args(persona_eval)
+    persona_eval.set_defaults(handler=_cmd_run_persona_eval, require_persona_judge=False)
 
     inspect_failures = subparsers.add_parser(
         "inspect-eval-failures",

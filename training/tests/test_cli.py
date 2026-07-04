@@ -15,6 +15,7 @@ def test_main_help_lists_all_commands() -> None:
             "inspect-eval-failures",
             "merge",
             "run-eval",
+            "run-persona-eval",
             "smoke-sft",
             "train-dpo",
             "train-sft",

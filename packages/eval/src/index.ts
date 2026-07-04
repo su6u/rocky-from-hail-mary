@@ -10,6 +10,18 @@ export {
 } from "./compare.js"
 
 export {
+  buildPersonaJudgeBlock,
+  buildPersonaJudgeMessages,
+  parsePersonaJudgeResponse,
+  passesDeterministicPersonaChecks,
+  passesRockyPersona,
+  PERSONA_JUDGE_SYSTEM_PROMPT,
+  PersonaJudgeError,
+  type PersonaJudgeBlock,
+  type PersonaJudgeVerdict,
+} from "./persona-judge.js"
+
+export {
   type CheckIssue,
   checkBookFactForbidden,
   checkBookFactTraps,
