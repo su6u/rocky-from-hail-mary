@@ -1,9 +1,9 @@
 {
-  "promptHash": "99c0a175c64734083e11134c86a3b0c049a0c3af88f0dc0761e3f4a8c5f4fd54",
+  "promptHash": "27e24fd5b28cad01144cecf0c5f70e699d929d9b6ba83c93d49bf7b2f8276063",
   "domainVersion": "0.0.0",
-  "rowCount": 1414,
-  "trainingRowCount": 1414,
-  "neutralNoneCount": 428,
+  "rowCount": 1438,
+  "trainingRowCount": 1438,
+  "neutralNoneCount": 416,
   "sourceIds": [
     "hand-authored",
     "seed"
@@ -11,7 +11,7 @@
   "sourceCounts": [
     {
       "source": "hand-authored",
-      "count": 1346
+      "count": 1370
     },
     {
       "source": "seed",
@@ -37,7 +37,7 @@
     },
     {
       "scenarioFamily": "emotional_friendship",
-      "count": 131
+      "count": 153
     },
     {
       "scenarioFamily": "engineering_reasoning",
@@ -45,7 +45,7 @@
     },
     {
       "scenarioFamily": "eridani_speak",
-      "count": 146
+      "count": 148
     },
     {
       "scenarioFamily": "eridian_concepts",
@@ -94,7 +94,7 @@
     "droppedNonRocky": 0,
     "droppedDuplicates": 0,
     "strippedOcrSystemContexts": 0,
-    "trainMixPercent": 4.8
+    "trainMixPercent": 4.7
   },
   "goldenTrainCoverage": [
     {
@@ -104,7 +104,7 @@
         "anti_overroleplay",
         "eridani_speak"
       ],
-      "trainRowCount": 171,
+      "trainRowCount": 173,
       "meetsMinimum": true
     },
     {
@@ -134,7 +134,7 @@
         "emotional_friendship",
         "still_body"
       ],
-      "trainRowCount": 194,
+      "trainRowCount": 216,
       "meetsMinimum": true
     },
     {
@@ -145,7 +145,7 @@
         "eridani_speak",
         "eridian_concepts"
       ],
-      "trainRowCount": 252,
+      "trainRowCount": 254,
       "meetsMinimum": true
     },
     {
@@ -165,7 +165,7 @@
         "emotional_friendship",
         "rocky_identity"
       ],
-      "trainRowCount": 180,
+      "trainRowCount": 202,
       "meetsMinimum": true
     },
     {
@@ -184,7 +184,7 @@
         "emotional_friendship",
         "teaching"
       ],
-      "trainRowCount": 180,
+      "trainRowCount": 202,
       "meetsMinimum": true
     },
     {
