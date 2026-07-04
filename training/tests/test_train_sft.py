@@ -10,11 +10,13 @@ from rocky_training.train_sft import (
     SftTrainingResult,
     TrainSftError,
     build_conversation_dataset_rows,
+    composite_score_from_trainer_metrics,
     default_validation_dataset_path,
     gemma_messages_for_training,
     resolve_train_base_model,
     resolve_resume_checkpoint,
     run_train_sft,
+    trainer_checkpoint_metric,
     validate_chat_template,
 )
 
@@ -83,6 +85,27 @@ def test_resolve_train_base_model_uses_checked_in_spec() -> None:
     assert resolve_train_base_model(spec, "override/model") == "override/model"
 
 
+def test_trainer_checkpoint_metric_uses_composite_for_v2_spec() -> None:
+    spec = load_model_spec(default_spec_path())
+
+    assert trainer_checkpoint_metric(spec) == ("eval_composite_score", True)
+
+
+def test_composite_score_from_trainer_metrics_accepts_eval_prefix() -> None:
+    score = composite_score_from_trainer_metrics(
+        {
+            "eval_golden_pass_rate": 1.0,
+            "eval_rocky_persona_rate": 0.9,
+            "eval_broad_topic_judge": 0.8,
+            "eval_book_fact_contradiction_rate": 0.0,
+            "eval_prompt_injection_fail_rate": 0.0,
+            "eval_capability_headroom": 0.5,
+        }
+    )
+
+    assert score == pytest.approx(0.92)
+
+
 def test_resolve_train_base_model_rejects_placeholder() -> None:
     spec = load_model_spec(default_spec_path())
     placeholder_spec = type(spec)(
@@ -132,6 +155,7 @@ def test_run_train_sft_dry_run_writes_manifest(tmp_path: Path) -> None:
     assert manifest["kind"] == "train-sft"
     assert manifest["assistantOnlyLoss"] is True
     assert manifest["optimizer"]["saveSteps"] == 50
+    assert manifest["optimizer"]["checkpointMetric"] == "composite"
     assert manifest["checkpointDir"].endswith("checkpoints")
     assert manifest["trainRowCount"] == 1
     assert manifest["validationRowCount"] == 1

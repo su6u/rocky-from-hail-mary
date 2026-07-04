@@ -3,6 +3,7 @@ from __future__ import annotations
 import math
 from dataclasses import dataclass
 from datetime import UTC, datetime
+import os
 from pathlib import Path
 from typing import Any, Callable
 
@@ -187,6 +188,56 @@ def composite_score(eval_results: dict[str, float]) -> float:
     )
 
 
+def _metric_value(metrics: dict[str, Any], name: str, default: float = 0.0) -> float:
+    for key in (name, f"eval_{name}"):
+        value = metrics.get(key)
+        if isinstance(value, (int, float)) and not isinstance(value, bool):
+            return float(value)
+    return default
+
+
+def composite_score_from_trainer_metrics(metrics: dict[str, Any]) -> float:
+    return composite_score(
+        {
+            "golden_pass_rate": _metric_value(metrics, "golden_pass_rate"),
+            "rocky_persona_rate": _metric_value(metrics, "rocky_persona_rate"),
+            "broad_topic_judge": _metric_value(metrics, "broad_topic_judge"),
+            "book_fact_contradiction_rate": _metric_value(
+                metrics, "book_fact_contradiction_rate", 1.0
+            ),
+            "prompt_injection_fail_rate": _metric_value(metrics, "prompt_injection_fail_rate", 1.0),
+            "capability_headroom": _metric_value(metrics, "capability_headroom"),
+        }
+    )
+
+
+def trainer_checkpoint_metric(spec: ModelSpec) -> tuple[str, bool]:
+    if spec.checkpoint_metric == "composite":
+        return ("eval_composite_score", True)
+    return ("eval_loss", False)
+
+
+def current_wandb_run() -> dict[str, str] | None:
+    try:
+        import wandb  # type: ignore[import-not-found]
+    except ModuleNotFoundError:
+        return None
+    run = getattr(wandb, "run", None)
+    if run is None:
+        return None
+    run_id = getattr(run, "id", None)
+    url = getattr(run, "url", None)
+    project = getattr(run, "project", None)
+    result: dict[str, str] = {}
+    if isinstance(run_id, str) and run_id:
+        result["id"] = run_id
+    if isinstance(url, str) and url:
+        result["url"] = url
+    if isinstance(project, str) and project:
+        result["project"] = project
+    return result or None
+
+
 def resolve_lora_target_modules(base_model: str, spec: ModelSpec) -> list[str] | str:
     if "gemma-4" in base_model.lower():
         modules = "|".join(spec.adapter.target_modules)
@@ -217,9 +268,23 @@ def run_sft_training(
 
     import torch
     from datasets import Dataset
-    from peft import LoraConfig
+    from peft import LoraConfig, prepare_model_for_kbit_training
+    from transformers import TrainerCallback
     from transformers import AutoModelForMultimodalLM, AutoProcessor, BitsAndBytesConfig, EarlyStoppingCallback
     from trl import SFTConfig, SFTTrainer
+
+    class RockyCompositeMetricCallback(TrainerCallback):
+        def on_evaluate(self, args: Any, state: Any, control: Any, metrics: dict[str, Any], **_: Any) -> None:
+            if spec.checkpoint_metric != "composite":
+                return
+            metrics["eval_composite_score"] = composite_score_from_trainer_metrics(metrics)
+            if "wandb" in (report_to or []):
+                try:
+                    import wandb  # type: ignore[import-not-found]
+                except ModuleNotFoundError:
+                    return
+                if wandb.run is not None:
+                    wandb.log({"eval/composite_score": metrics["eval_composite_score"]}, step=state.global_step)
 
     processor = AutoProcessor.from_pretrained(base_model)
     tokenizer = getattr(processor, "tokenizer", None)
@@ -244,6 +309,7 @@ def run_sft_training(
         dtype=compute_dtype,
         device_map="auto",
     )
+    model = prepare_model_for_kbit_training(model, use_gradient_checkpointing=True)
 
     lora_config = LoraConfig(
         r=spec.adapter.rank,
@@ -265,6 +331,7 @@ def run_sft_training(
         math.ceil(spec.optimizer.effective_batch_size / per_device_train_batch_size),
     )
 
+    checkpoint_metric, greater_is_better = trainer_checkpoint_metric(spec)
     training_args = SFTConfig(
         output_dir=str(output_dir / "checkpoints"),
         num_train_epochs=spec.optimizer.max_epochs,
@@ -285,15 +352,17 @@ def run_sft_training(
         save_steps=spec.optimizer.save_steps,
         save_total_limit=spec.optimizer.save_total_limit,
         load_best_model_at_end=spec.optimizer.early_stopping,
-        metric_for_best_model="eval_loss",
-        greater_is_better=False,
+        metric_for_best_model=checkpoint_metric,
+        greater_is_better=greater_is_better,
         assistant_only_loss=True,
         packing=False,
         report_to=report_to or [],
         remove_unused_columns=False,
     )
 
-    callbacks = [EarlyStoppingCallback(early_stopping_patience=1)] if spec.optimizer.early_stopping else []
+    callbacks = [RockyCompositeMetricCallback()]
+    if spec.optimizer.early_stopping:
+        callbacks.append(EarlyStoppingCallback(early_stopping_patience=1))
     trainer = SFTTrainer(
         model=model,
         args=training_args,
@@ -372,6 +441,8 @@ def build_train_sft_manifest(
         },
         "checkpointDir": str(output_dir / "checkpoints"),
         "resumeFromCheckpoint": resume_from_checkpoint,
+        "wandb": current_wandb_run(),
+        "wandbProject": os.environ.get("WANDB_PROJECT"),
         "datasetPath": str(dataset_path),
         "validationDatasetPath": str(validation_dataset_path),
         "trainRowCount": len(train_rows),
