@@ -1,5 +1,5 @@
 {
-  "_generated": "GENERATED — run `pnpm sync-contracts` after changing @rocky/domain, @rocky/prompt, or @rocky/eval",
+  "_generated": "GENERATED — run `pnpm sync-contracts` after changing @rocky/domain or @rocky/prompt",
   "metadataTag": "rocky_metadata",
   "emotions": [
     "neutral",

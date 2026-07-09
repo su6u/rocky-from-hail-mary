@@ -7,13 +7,13 @@ import { resolve } from "node:path"
 
 import { Emotions, Gestures } from "../packages/domain/dist/index.js"
 import { ROCKY_METADATA_TAG, SYSTEM_PROMPT } from "../packages/prompt/dist/index.js"
-import { PERSONA_JUDGE_SYSTEM_PROMPT } from "../packages/eval/dist/index.js"
 
 const repoRoot = resolve(import.meta.dirname, "..")
 const contractsDir = resolve(repoRoot, "contracts")
 const promptsDir = resolve(contractsDir, "prompts")
 
-const GENERATED = "GENERATED — run `pnpm sync-contracts` after changing @rocky/domain, @rocky/prompt, or @rocky/eval"
+const GENERATED =
+  "GENERATED — run `pnpm sync-contracts` after changing @rocky/domain or @rocky/prompt"
 
 const writeText = async (path, body) => {
   await writeFile(path, `${body.trimEnd()}\n`, "utf8")
@@ -38,11 +38,9 @@ const main = async () => {
   )
 
   await writeText(resolve(promptsDir, "rocky-system.txt"), SYSTEM_PROMPT)
-  await writeText(resolve(promptsDir, "persona-judge.txt"), PERSONA_JUDGE_SYSTEM_PROMPT)
 
   console.log("contracts/domain.json")
   console.log("contracts/prompts/rocky-system.txt")
-  console.log("contracts/prompts/persona-judge.txt")
 }
 
 main().catch((error) => {

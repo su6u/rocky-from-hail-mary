@@ -53,9 +53,8 @@ def test_run_eval_writes_deterministic_results(tmp_path: Path) -> None:
     assert payload["results"][0]["promptId"] == "eval-eridian_concepts"
     assert payload["results"][1]["promptId"] == "eval-repairing_machines"
     assert payload["baselinePath"] == str(tmp_path / "base.results.json")
-    assert payload["stop"] == ["<turn|>", "</rocky_metadata>"]
+    assert payload["stop"] == ["<turn|>"]
     assert payload["gateSummary"]["passed"] is True
-    assert payload["gateSummary"]["rockyPersonaJudgeMode"] == "heuristic"
 
     array_path = output_path.with_name("candidate-eval.results.json")
     assert array_path.is_file()
@@ -64,34 +63,6 @@ def test_run_eval_writes_deterministic_results(tmp_path: Path) -> None:
     assert rows[0]["promptId"] == "eval-eridian_concepts"
     assert rows[0]["uncertaintyPatterns"] == ["\\bSeal\\b"]
     assert rows[0]["bookFactForbiddenPatterns"] == ["\\bwe both breathe oxygen\\b"]
-
-
-def test_run_eval_attaches_llm_persona_judge(tmp_path: Path) -> None:
-    def fake_chat(**kwargs: object) -> str:
-        return SAMPLE_OUTPUT
-
-    def fake_judge(**kwargs: object) -> str:
-        return '{"is_rocky": true, "reason": "Rocky voice on topic."}'
-
-    output_path = tmp_path / "persona-eval.json"
-    payload = run_eval(
-        host="http://localhost:11434",
-        model="rocky:v2",
-        output_path=output_path,
-        golden_path=FIXTURES / "golden.eval.jsonl",
-        system_prompt_path=default_system_prompt_path(),
-        limit=1,
-        chat_caller=fake_chat,
-        judge_model="judge-model",
-        judge_caller=fake_judge,
-        require_persona_judge=True,
-    )
-
-    assert payload["personaJudgeModel"] == "judge-model"
-    assert payload["results"][0]["personaJudge"]["passed"] is True
-    assert payload["results"][0]["personaJudge"]["llmPassed"] is True
-    assert payload["gateSummary"]["rockyPersonaJudgeMode"] == "llm"
-    assert payload["gateSummary"]["passed"] is True
 
 
 def test_system_prompt_file_matches_repo_default() -> None:

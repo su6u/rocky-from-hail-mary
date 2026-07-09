@@ -8,19 +8,6 @@ export {
   parseEvalResultJson,
   type ScenarioRegressionRow,
 } from "./compare.js"
-
-export {
-  buildPersonaJudgeBlock,
-  buildPersonaJudgeMessages,
-  parsePersonaJudgeResponse,
-  passesDeterministicPersonaChecks,
-  passesRockyPersona,
-  PERSONA_JUDGE_SYSTEM_PROMPT,
-  PersonaJudgeError,
-  type PersonaJudgeBlock,
-  type PersonaJudgeVerdict,
-} from "./persona-judge.js"
-
 export {
   type CheckIssue,
   checkBookFactForbidden,
@@ -48,6 +35,11 @@ export {
   scoreEvalOutputs,
 } from "./deterministic-checks.js"
 export { loadGoldenPrompts } from "./golden.js"
+export {
+  containsThirdPersonGraceInstruction,
+  passesDeterministicPersonaChecks,
+  passesRockyPersona,
+} from "./persona-checks.js"
 
 export {
   buildEvalReport,
