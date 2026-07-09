@@ -177,43 +177,9 @@ def _metric_from_history(history: list[dict[str, Any]], key: str) -> float | Non
     return float(values[-1]) if values else None
 
 
-def composite_score(eval_results: dict[str, float]) -> float:
-    return (
-        0.30 * eval_results.get("golden_pass_rate", 0.0)
-        + 0.25 * eval_results.get("rocky_persona_rate", 0.0)
-        + 0.15 * eval_results.get("broad_topic_judge", 0.0)
-        + 0.15 * (1.0 - eval_results.get("book_fact_contradiction_rate", 1.0))
-        + 0.10 * (1.0 - eval_results.get("prompt_injection_fail_rate", 1.0))
-        + 0.05 * eval_results.get("capability_headroom", 0.0)
-    )
-
-
-def _metric_value(metrics: dict[str, Any], name: str, default: float = 0.0) -> float:
-    for key in (name, f"eval_{name}"):
-        value = metrics.get(key)
-        if isinstance(value, (int, float)) and not isinstance(value, bool):
-            return float(value)
-    return default
-
-
-def composite_score_from_trainer_metrics(metrics: dict[str, Any]) -> float:
-    return composite_score(
-        {
-            "golden_pass_rate": _metric_value(metrics, "golden_pass_rate"),
-            "rocky_persona_rate": _metric_value(metrics, "rocky_persona_rate"),
-            "broad_topic_judge": _metric_value(metrics, "broad_topic_judge"),
-            "book_fact_contradiction_rate": _metric_value(
-                metrics, "book_fact_contradiction_rate", 1.0
-            ),
-            "prompt_injection_fail_rate": _metric_value(metrics, "prompt_injection_fail_rate", 1.0),
-            "capability_headroom": _metric_value(metrics, "capability_headroom"),
-        }
-    )
-
-
 def trainer_checkpoint_metric(spec: ModelSpec) -> tuple[str, bool]:
-    if spec.checkpoint_metric == "composite":
-        return ("eval_composite_score", True)
+    # Full persona/golden gates are not computed during Trainer eval, so eval_loss
+    # is the only reliable in-loop checkpoint signal (see v2 run postmortem #10).
     return ("eval_loss", False)
 
 
@@ -269,22 +235,8 @@ def run_sft_training(
     import torch
     from datasets import Dataset
     from peft import LoraConfig, prepare_model_for_kbit_training
-    from transformers import TrainerCallback
     from transformers import AutoModelForMultimodalLM, AutoProcessor, BitsAndBytesConfig, EarlyStoppingCallback
     from trl import SFTConfig, SFTTrainer
-
-    class RockyCompositeMetricCallback(TrainerCallback):
-        def on_evaluate(self, args: Any, state: Any, control: Any, metrics: dict[str, Any], **_: Any) -> None:
-            if spec.checkpoint_metric != "composite":
-                return
-            metrics["eval_composite_score"] = composite_score_from_trainer_metrics(metrics)
-            if "wandb" in (report_to or []):
-                try:
-                    import wandb  # type: ignore[import-not-found]
-                except ModuleNotFoundError:
-                    return
-                if wandb.run is not None:
-                    wandb.log({"eval/composite_score": metrics["eval_composite_score"]}, step=state.global_step)
 
     processor = AutoProcessor.from_pretrained(base_model)
     tokenizer = getattr(processor, "tokenizer", None)
@@ -360,7 +312,7 @@ def run_sft_training(
         remove_unused_columns=False,
     )
 
-    callbacks = [RockyCompositeMetricCallback()]
+    callbacks = []
     if spec.optimizer.early_stopping:
         callbacks.append(EarlyStoppingCallback(early_stopping_patience=1))
     trainer = SFTTrainer(

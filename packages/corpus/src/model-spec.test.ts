@@ -18,7 +18,7 @@ describe("validateModelSpecFile", () => {
     assert.equal(result.spec?.id, "rocky-gemma-e4b-v2")
     assert.equal(result.spec?.chat_template, "gemma4")
     assert.equal(result.spec?.enable_thinking, false)
-    assert.equal(result.spec?.checkpoint_metric, "composite")
+    assert.equal(result.spec?.checkpoint_metric, "eval_loss")
     assert.equal(result.spec?.quantization.export, "q4_k_m")
     assert.equal(result.spec?.eval_gates.rocky_persona_rate, 0.95)
     assert.ok(result.warnings.some((warning) => warning.includes(MODEL_SPEC_EXPORT_QUANT_WARNING)))

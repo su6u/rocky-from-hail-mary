@@ -3,7 +3,7 @@ base_model: google/gemma-4-E4B-it
 base_model_fallback: google/gemma-4-E4B-it
 chat_template: gemma4
 enable_thinking: false
-checkpoint_metric: composite
+checkpoint_metric: eval_loss
 train_precision: bf16
 quantization:
   train: nf4
@@ -40,7 +40,6 @@ inference:
   num_ctx: 8192
   stop:
     - "<turn|>"
-    - "</rocky_metadata>"
 artifacts:
   adapter_dir: runs/rocky-gemma-e4b-v2/adapter
   merged_dir: runs/rocky-gemma-e4b-v2/merged

@@ -33,11 +33,3 @@ def default_preference_dataset_path() -> Path:
 
 def default_system_prompt_path() -> Path:
     return default_contracts_dir() / "prompts" / "rocky-system.txt"
-
-
-def default_persona_judge_prompt_path() -> Path:
-    return default_contracts_dir() / "prompts" / "persona-judge.txt"
-
-
-def default_persona_judge_model() -> str:
-    return DEFAULT_GEMMA_E4B_IT

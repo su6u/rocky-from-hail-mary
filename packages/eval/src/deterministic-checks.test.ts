@@ -3,19 +3,19 @@ import { describe, it } from "node:test"
 
 import { ROCKY_METADATA_TAG } from "@rocky/prompt"
 import {
+  checkAssistantRegister,
   checkBookFactForbidden,
   checkBookFactTraps,
   checkEridaniArticle,
-  checkGroundingCitation,
   checkGestureStillness,
+  checkGroundingCitation,
   checkMetadataSingleTag,
   checkMetadataValid,
-  checkAssistantRegister,
   checkPromptInjection,
   checkQuestionSuffix,
   checkResponseLength,
-  checkThinkingLeak,
   checkRoleplayForbidden,
+  checkThinkingLeak,
   checkUncertaintyCaution,
   parseModelOutput,
   scoreEvalOutput,
@@ -137,7 +137,10 @@ describe("checkGestureStillness", () => {
 
 describe("golden pattern checks", () => {
   it("requires grounding facts when patterns are provided", () => {
-    assert.equal(checkGroundingCitation("Battery output down twelve percent", ["\\btwelve\\b"]).length, 0)
+    assert.equal(
+      checkGroundingCitation("Battery output down twelve percent", ["\\btwelve\\b"]).length,
+      0,
+    )
     assert.ok(checkGroundingCitation("Battery status changed", ["\\btwelve\\b"]).length > 0)
   })
 
@@ -148,14 +151,19 @@ describe("golden pattern checks", () => {
 
   it("forbids heavy roleplay framing when a prompt disallows it", () => {
     assert.equal(checkRoleplayForbidden("Sort cloth by color", ["\\b(ship|bulkhead)\\b"]).length, 0)
-    assert.ok(checkRoleplayForbidden("Ship bulkhead laundry bad", ["\\b(ship|bulkhead)\\b"]).length > 0)
+    assert.ok(
+      checkRoleplayForbidden("Ship bulkhead laundry bad", ["\\b(ship|bulkhead)\\b"]).length > 0,
+    )
   })
 
   it("forbids per-prompt book fact contradictions", () => {
-    assert.equal(checkBookFactForbidden("No. I breathe ammonia.", ["\\bwe both breathe oxygen\\b"]).length, 0)
+    assert.equal(
+      checkBookFactForbidden("No. I breathe ammonia.", ["\\bwe both breathe oxygen\\b"]).length,
+      0,
+    )
     assert.ok(
-      checkBookFactForbidden("Yes, we both breathe oxygen.", ["\\bwe both breathe oxygen\\b"]).length >
-        0,
+      checkBookFactForbidden("Yes, we both breathe oxygen.", ["\\bwe both breathe oxygen\\b"])
+        .length > 0,
     )
   })
 })

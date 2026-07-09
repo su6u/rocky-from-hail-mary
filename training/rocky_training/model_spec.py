@@ -18,7 +18,7 @@ TRAIN_PRECISIONS = ("bf16", "fp16")
 TRAIN_QUANTS = ("nf4",)
 EXPORT_QUANTS = ("q4_k_m",)
 SCHEDULERS = ("cosine", "linear")
-CHECKPOINT_METRICS = ("eval_loss", "composite")
+CHECKPOINT_METRICS = ("eval_loss",)
 TARGET_MODULES = (
     "q_proj",
     "k_proj",

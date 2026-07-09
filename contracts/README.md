@@ -12,6 +12,5 @@ pnpm sync-contracts
 |------|--------|
 | `domain.json` | `@rocky/domain` — emotions, gestures, metadata tag |
 | `prompts/rocky-system.txt` | `@rocky/prompt` — `SYSTEM_PROMPT` |
-| `prompts/persona-judge.txt` | `@rocky/eval` — `PERSONA_JUDGE_SYSTEM_PROMPT` |
 
 Regenerate after changing domain enums or prompt text in `packages/`.

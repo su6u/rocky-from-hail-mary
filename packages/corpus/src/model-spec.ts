@@ -90,7 +90,7 @@ const TRAIN_PRECISIONS = ["bf16", "fp16"] as const
 const TRAIN_QUANTS = ["nf4"] as const
 const EXPORT_QUANTS = ["q4_k_m"] as const
 const SCHEDULERS = ["cosine", "linear"] as const
-const CHECKPOINT_METRICS = ["eval_loss", "composite"] as const
+const CHECKPOINT_METRICS = ["eval_loss"] as const
 const TARGET_MODULES = [
   "q_proj",
   "k_proj",
@@ -160,14 +160,21 @@ export const validateModelSpec = (
   }
 
   if (!isNonEmptyString(raw.chat_template)) {
-    issues.push({ line, path: "chat_template", message: "chat_template must be a non-empty string" })
+    issues.push({
+      line,
+      path: "chat_template",
+      message: "chat_template must be a non-empty string",
+    })
   }
 
   if (typeof raw.enable_thinking !== "boolean") {
     issues.push({ line, path: "enable_thinking", message: "enable_thinking must be boolean" })
   }
 
-  if (!isNonEmptyString(raw.checkpoint_metric) || !inList(raw.checkpoint_metric, CHECKPOINT_METRICS)) {
+  if (
+    !isNonEmptyString(raw.checkpoint_metric) ||
+    !inList(raw.checkpoint_metric, CHECKPOINT_METRICS)
+  ) {
     issues.push({
       line,
       path: "checkpoint_metric",
@@ -324,7 +331,9 @@ export const validateModelSpec = (
       })
     } else if (
       warmupStepsRaw !== undefined &&
-      (typeof warmupStepsRaw !== "number" || warmupStepsRaw < 0 || !Number.isInteger(warmupStepsRaw))
+      (typeof warmupStepsRaw !== "number" ||
+        warmupStepsRaw < 0 ||
+        !Number.isInteger(warmupStepsRaw))
     ) {
       issues.push({
         line,
