@@ -25,7 +25,9 @@ describe("generateModelfile", () => {
     assert.match(output, /parameter top_p 0\.9/)
     assert.match(output, /parameter num_ctx 8192/)
     assert.ok(output.includes('parameter stop "<turn|>"'))
-    assert.ok(output.includes('parameter stop "</rocky_metadata>"'))
+    // </rocky_metadata> must NOT be a stop token: Ollama would cut the closing
+    // tag from output and break metadata gates (v2 postmortem #3).
+    assert.ok(!output.includes('parameter stop "</rocky_metadata>"'))
     assert.ok(output.includes("renderer gemma4"))
     assert.ok(output.includes("parser gemma4"))
     assert.ok(output.includes(`system """${SYSTEM_PROMPT}"""`))
