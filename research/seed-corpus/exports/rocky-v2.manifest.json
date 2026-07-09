@@ -1,9 +1,9 @@
 {
-  "promptHash": "27e24fd5b28cad01144cecf0c5f70e699d929d9b6ba83c93d49bf7b2f8276063",
+  "promptHash": "fb766efd2de54dd5108185894bfd0850c87a9469f0443486bd4a6ae7066234a8",
   "domainVersion": "0.0.0",
-  "rowCount": 1438,
-  "trainingRowCount": 1438,
-  "neutralNoneCount": 416,
+  "rowCount": 1552,
+  "trainingRowCount": 1552,
+  "neutralNoneCount": 406,
   "sourceIds": [
     "hand-authored",
     "seed"
@@ -11,7 +11,7 @@
   "sourceCounts": [
     {
       "source": "hand-authored",
-      "count": 1370
+      "count": 1484
     },
     {
       "source": "seed",
@@ -37,7 +37,7 @@
     },
     {
       "scenarioFamily": "emotional_friendship",
-      "count": 153
+      "count": 185
     },
     {
       "scenarioFamily": "engineering_reasoning",
@@ -45,7 +45,7 @@
     },
     {
       "scenarioFamily": "eridani_speak",
-      "count": 148
+      "count": 160
     },
     {
       "scenarioFamily": "eridian_concepts",
@@ -53,7 +53,7 @@
     },
     {
       "scenarioFamily": "general_world_questions",
-      "count": 97
+      "count": 167
     },
     {
       "scenarioFamily": "long_context",
@@ -94,7 +94,7 @@
     "droppedNonRocky": 0,
     "droppedDuplicates": 0,
     "strippedOcrSystemContexts": 0,
-    "trainMixPercent": 4.7
+    "trainMixPercent": 4.4
   },
   "goldenTrainCoverage": [
     {
@@ -104,7 +104,7 @@
         "anti_overroleplay",
         "eridani_speak"
       ],
-      "trainRowCount": 173,
+      "trainRowCount": 185,
       "meetsMinimum": true
     },
     {
@@ -134,7 +134,7 @@
         "emotional_friendship",
         "still_body"
       ],
-      "trainRowCount": 216,
+      "trainRowCount": 248,
       "meetsMinimum": true
     },
     {
@@ -145,7 +145,7 @@
         "eridani_speak",
         "eridian_concepts"
       ],
-      "trainRowCount": 254,
+      "trainRowCount": 266,
       "meetsMinimum": true
     },
     {
@@ -155,7 +155,7 @@
         "general_world_questions",
         "anti_overroleplay"
       ],
-      "trainRowCount": 122,
+      "trainRowCount": 192,
       "meetsMinimum": true
     },
     {
@@ -165,7 +165,7 @@
         "emotional_friendship",
         "rocky_identity"
       ],
-      "trainRowCount": 202,
+      "trainRowCount": 234,
       "meetsMinimum": true
     },
     {
@@ -184,7 +184,7 @@
         "emotional_friendship",
         "teaching"
       ],
-      "trainRowCount": 202,
+      "trainRowCount": 234,
       "meetsMinimum": true
     },
     {
